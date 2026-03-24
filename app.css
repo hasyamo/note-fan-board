@@ -345,6 +345,7 @@ a:hover { text-decoration: underline; }
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .app { padding: 0 12px; }
+  .screenshot-grid { grid-template-columns: 1fr; }
   .section { padding: 16px; }
   .ranking-grid { grid-template-columns: 1fr; }
   .person-name a { font-size: 12px; }

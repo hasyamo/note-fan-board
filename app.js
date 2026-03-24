@@ -484,10 +484,14 @@ function personListHTML(list, emptyMsg) {
   return list.slice(0, 20).map(u => {
     const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
     const avatarClass = 'person-avatar' + (u.category === 'regular' ? ' regular' : '');
+    const returnStatus = getSukiReturnStatus(u.urlname);
+    const statusHTML = returnStatus.liked
+      ? '<div style="color:var(--accent-green);font-size:11px">✅ スキ返し済</div>'
+      : '<div style="color:var(--accent-amber);font-size:11px">❌ 未スキ返し</div>';
     return `<div class="person">
       <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-      <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a></div>
-      <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers</div>
+      <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener" onclick="setPendingVisit('${u.urlname}','${u.name}')">${u.name}</a></div>
+      <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers<br>${statusHTML}</div>
     </div>`;
   }).join('');
 }
@@ -668,6 +672,90 @@ function openScreenshot() {
 function closeScreenshot() {
   document.getElementById('sukiScreenshotModal').style.display = 'none';
 }
+
+// ===== Suki Return Tracking =====
+const STORAGE_KEY_RETURNS = 'fanboard_suki_returns';
+const STORAGE_KEY_PENDING = 'fanboard_pending_visit';
+
+function getSukiReturns() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY_RETURNS) || '{}');
+}
+
+function saveSukiReturns(data) {
+  localStorage.setItem(STORAGE_KEY_RETURNS, JSON.stringify(data));
+}
+
+function getSukiReturnStatus(urlname) {
+  if (!urlname) return { liked: false };
+  const returns = getSukiReturns();
+  const weekKey = getMondayOf(getTodayJST());
+  const entry = returns[urlname];
+  if (entry && entry.week === weekKey) return { liked: entry.liked };
+  return { liked: false };
+}
+
+function setSukiReturnStatus(urlname, liked) {
+  const returns = getSukiReturns();
+  const weekKey = getMondayOf(getTodayJST());
+  returns[urlname] = { liked, week: weekKey, updatedAt: new Date().toISOString() };
+  saveSukiReturns(returns);
+}
+
+function setPendingVisit(urlname, name) {
+  sessionStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify({ urlname, name }));
+}
+
+function checkPendingVisit() {
+  const pending = sessionStorage.getItem(STORAGE_KEY_PENDING);
+  if (!pending) return;
+  sessionStorage.removeItem(STORAGE_KEY_PENDING);
+  const { urlname, name } = JSON.parse(pending);
+  const status = getSukiReturnStatus(urlname);
+  if (status.liked) return;
+  showReturnModal(urlname, name);
+}
+
+const RETURN_LINES = [
+  '……ちゃんとスキした？',
+  '読んだだけじゃ意味ないわよ。スキした？',
+  '……で、スキは押したの？',
+  '見ただけで帰ってきたんじゃないでしょうね。',
+  '……スキくらい押しなさいよ。',
+  'ちゃんと読んだなら、伝えなさい。',
+];
+function randomReturnLine() {
+  return RETURN_LINES[Math.floor(Math.random() * RETURN_LINES.length)];
+}
+
+function showReturnModal(urlname, name) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div style="max-width:400px;margin:120px auto;padding:24px;background:var(--section-bg);border-radius:16px;border:1px solid var(--border);text-align:center">
+      <img src="${charImgSrc('rinka')}" alt="凛華" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--accent-cyan);margin-bottom:8px">
+      <div style="font-size:15px;color:var(--text-primary);margin-bottom:6px">${randomReturnLine()}</div>
+      <div style="font-size:14px;color:var(--text-muted);margin-bottom:16px">${name}さんの記事</div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button onclick="handleReturnAnswer('${urlname}',true,this)" style="padding:10px 24px;background:var(--accent-pink);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">スキした</button>
+        <button onclick="handleReturnAnswer('${urlname}',false,this)" style="padding:10px 24px;background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">まだ</button>
+      </div>
+    </div>`;
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function handleReturnAnswer(urlname, liked, btn) {
+  if (liked) setSukiReturnStatus(urlname, true);
+  btn.closest('.modal-overlay').remove();
+  // Refresh fans tab if active
+  const fansTab = document.getElementById('tabFans');
+  if (fansTab && fansTab.classList.contains('active')) renderFans();
+}
+
+// Check when returning from note (tab switch back)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') setTimeout(checkPendingVisit, 300);
+});
 
 // ===== CSV Parser =====
 function parseCSV(text) {
