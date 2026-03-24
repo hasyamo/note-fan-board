@@ -843,7 +843,7 @@ function showUserSelectModal(creators) {
       const val = input.value.trim();
       if (!val) { error.textContent = 'IDを入力してください'; error.style.display = ''; return; }
       if (creators && !creators.includes(val)) {
-        error.textContent = 'このIDは登録されていません。@ohayo_kanojo にDMください。';
+        error.textContent = 'このIDは登録されていません。noteではしゃもまでDMください。';
         error.style.display = '';
         return;
       }
