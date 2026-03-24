@@ -462,17 +462,17 @@ function renderFans() {
   html += `<div class="section">
     <div class="section-title">今週のスキしてくれた人 <span style="font-weight:400;color:var(--text-muted)">${range.start}〜${range.end}</span></div>
     <div class="people-tabs">
-      <div class="people-tab active" onclick="switchPeopleTab(this,'new')">新規<br>(${newList.length})</div>
-      <div class="people-tab" onclick="switchPeopleTab(this,'return')">復帰<br>(${returnList.length})</div>
-      <div class="people-tab" onclick="switchPeopleTab(this,'regular')">常連<br>(${regList.length})</div>
-      <div class="people-tab" onclick="switchPeopleTab(this,'occasional')">たまに<br>(${occasionalList.length})</div>
-      <div class="people-tab" onclick="switchPeopleTab(this,'atrisk')" style="color:var(--accent-amber)">離脱危機<br>(${atRiskUsers.length})</div>
+      <div class="people-tab${activePeopleTab==='new'?' active':''}" onclick="switchPeopleTab(this,'new')">新規<br>(${newList.length})</div>
+      <div class="people-tab${activePeopleTab==='return'?' active':''}" onclick="switchPeopleTab(this,'return')">復帰<br>(${returnList.length})</div>
+      <div class="people-tab${activePeopleTab==='regular'?' active':''}" onclick="switchPeopleTab(this,'regular')">常連<br>(${regList.length})</div>
+      <div class="people-tab${activePeopleTab==='occasional'?' active':''}" onclick="switchPeopleTab(this,'occasional')">たまに<br>(${occasionalList.length})</div>
+      <div class="people-tab${activePeopleTab==='atrisk'?' active':''}" onclick="switchPeopleTab(this,'atrisk')" style="color:var(--accent-amber)">離脱危機<br>(${atRiskUsers.length})</div>
     </div>
-    <div class="people-content active" data-tab="new">${personListHTML(newList, '新規スキなし')}</div>
-    <div class="people-content" data-tab="return" style="display:none">${personListHTML(returnList, '復帰なし')}</div>
-    <div class="people-content" data-tab="regular" style="display:none">${personListHTML(regList, '常連なし')}</div>
-    <div class="people-content" data-tab="occasional" style="display:none">${personListHTML(occasionalList, '該当なし')}</div>
-    <div class="people-content" data-tab="atrisk" style="display:none">${atRiskListHTML}</div>
+    <div class="people-content${activePeopleTab==='new'?' active':''}" data-tab="new" style="${activePeopleTab==='new'?'':'display:none'}">${personListHTML(newList, '新規スキなし')}</div>
+    <div class="people-content${activePeopleTab==='return'?' active':''}" data-tab="return" style="${activePeopleTab==='return'?'':'display:none'}">${personListHTML(returnList, '復帰なし')}</div>
+    <div class="people-content${activePeopleTab==='regular'?' active':''}" data-tab="regular" style="${activePeopleTab==='regular'?'':'display:none'}">${personListHTML(regList, '常連なし')}</div>
+    <div class="people-content${activePeopleTab==='occasional'?' active':''}" data-tab="occasional" style="${activePeopleTab==='occasional'?'':'display:none'}">${personListHTML(occasionalList, '該当なし')}</div>
+    <div class="people-content${activePeopleTab==='atrisk'?' active':''}" data-tab="atrisk" style="${activePeopleTab==='atrisk'?'':'display:none'}">${atRiskListHTML}</div>
   </div>`;
 
   el.innerHTML = html;
@@ -497,6 +497,7 @@ function personListHTML(list, emptyMsg) {
 }
 
 function switchPeopleTab(btn, tab) {
+  activePeopleTab = tab;
   btn.parentElement.querySelectorAll('.people-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const section = btn.closest('.section');
@@ -745,17 +746,21 @@ function showReturnModal(urlname, name) {
   modal.querySelector('button').focus();
 }
 
+let activePeopleTab = 'new';
+
 function handleReturnAnswer(urlname, liked, btn) {
   if (liked) setSukiReturnStatus(urlname, true);
   btn.closest('.modal-overlay').remove();
-  // Refresh fans tab if active
+  // Refresh fans tab if active, preserving current people tab
   const fansTab = document.getElementById('tabFans');
-  if (fansTab && fansTab.classList.contains('active')) renderFans();
+  if (fansTab && fansTab.classList.contains('active')) {
+    renderFans();
+  }
 }
 
 // Check when returning from note (tab switch back)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') setTimeout(checkPendingVisit, 300);
+  if (document.visibilityState === 'visible') setTimeout(checkPendingVisit, 800);
 });
 
 // ===== CSV Parser =====
