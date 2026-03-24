@@ -817,33 +817,83 @@ async function loadData(urlname) {
 }
 
 // ===== Init =====
-async function init() {
-  // Get urlname from path: /note-fan-board/hasyamo/ → hasyamo
-  const pathParts = location.pathname.replace(/\/$/, '').split('/');
-  const repoIdx = pathParts.indexOf('note-fan-board');
-  let urlname = repoIdx >= 0 && pathParts.length > repoIdx + 1 ? pathParts[repoIdx + 1] : '';
+const STORAGE_KEY_USER = 'fanboard_user';
 
-  // Local dev: fallback to query param or default
-  if (!urlname || urlname === 'index.html') {
-    const params = new URLSearchParams(location.search);
-    urlname = params.get('user') || 'hasyamo';
+function showUserSelectModal(creators) {
+  return new Promise(resolve => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = '';
+    modal.innerHTML = `
+      <div style="max-width:400px;margin:100px auto;padding:28px;background:var(--section-bg);border-radius:16px;border:1px solid var(--border);text-align:center">
+        <img src="images/icon-192.png" alt="" style="width:64px;height:64px;border-radius:50%;margin-bottom:12px">
+        <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:4px">観測は続く。</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">あなたのnote IDを入力してください</div>
+        <input id="userInput" type="text" placeholder="例: hasyamo" style="width:100%;padding:12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;font-size:15px;text-align:center;outline:none;box-sizing:border-box">
+        <div id="userError" style="font-size:12px;color:var(--accent-pink);margin-top:8px;display:none"></div>
+        <button id="userSubmit" style="margin-top:16px;padding:12px 32px;background:var(--accent-cyan);color:#1a1a2e;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;width:100%">はじめる</button>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const input = document.getElementById('userInput');
+    const error = document.getElementById('userError');
+    const submit = document.getElementById('userSubmit');
+
+    function trySubmit() {
+      const val = input.value.trim();
+      if (!val) { error.textContent = 'IDを入力してください'; error.style.display = ''; return; }
+      if (creators && !creators.includes(val)) {
+        error.textContent = 'このIDは登録されていません。@ohayo_kanojo にDMください。';
+        error.style.display = '';
+        return;
+      }
+      localStorage.setItem(STORAGE_KEY_USER, val);
+      modal.remove();
+      resolve(val);
+    }
+
+    submit.addEventListener('click', trySubmit);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') trySubmit(); });
+    input.focus();
+  });
+}
+
+async function init() {
+  // Priority: URL query > localStorage > prompt
+  const params = new URLSearchParams(location.search);
+  let urlname = params.get('user') || '';
+
+  // Path-based: /note-fan-board/hasyamo/
+  if (!urlname) {
+    const pathParts = location.pathname.replace(/\/$/, '').split('/');
+    const repoIdx = pathParts.indexOf('note-fan-board');
+    if (repoIdx >= 0 && pathParts.length > repoIdx + 1 && pathParts[repoIdx + 1] !== 'index.html') {
+      urlname = pathParts[repoIdx + 1];
+    }
   }
 
-  // Check if creator exists
+  // localStorage
+  if (!urlname) {
+    urlname = localStorage.getItem(STORAGE_KEY_USER) || '';
+  }
+
+  // Load creators list
+  let creators = null;
   try {
     const creatorsRes = await fetch('./data/creators.csv?t=' + Date.now());
     if (creatorsRes.ok) {
-      const creators = parseCSV(await creatorsRes.text()).map(r => r.urlname);
-      if (!creators.includes(urlname)) {
-        document.querySelector('.app').innerHTML = `
-          <div style="text-align:center;padding:60px 20px">
-            <h2 style="color:var(--accent-pink);margin-bottom:12px">このユーザーは登録されていません</h2>
-            <p style="color:var(--text-muted);font-size:13px">note fan boardを使いたい方は、<a href="https://twitter.com/ohayo_kanojo" target="_blank">@ohayo_kanojo</a> にDMください。</p>
-          </div>`;
-        return;
-      }
+      creators = parseCSV(await creatorsRes.text()).map(r => r.urlname);
     }
   } catch(e) {}
+
+  // Validate or prompt
+  if (!urlname || (creators && !creators.includes(urlname))) {
+    localStorage.removeItem(STORAGE_KEY_USER);
+    urlname = await showUserSelectModal(creators);
+  } else {
+    // Save to localStorage for PWA
+    localStorage.setItem(STORAGE_KEY_USER, urlname);
+  }
 
   // Dynamic manifest with user-specific start_url
   const dynamicManifest = {
