@@ -736,12 +736,13 @@ function showReturnModal(urlname, name) {
       <div style="font-size:15px;color:var(--text-primary);margin-bottom:6px">${randomReturnLine()}</div>
       <div style="font-size:14px;color:var(--text-muted);margin-bottom:16px">${name}さんの記事</div>
       <div style="display:flex;gap:12px;justify-content:center">
-        <button onclick="handleReturnAnswer('${urlname}',true,this)" style="padding:10px 24px;background:var(--accent-pink);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">スキした</button>
-        <button onclick="handleReturnAnswer('${urlname}',false,this)" style="padding:10px 24px;background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">まだ</button>
+        <button onclick="event.preventDefault();handleReturnAnswer('${urlname}',true,this)" style="padding:10px 24px;background:var(--accent-pink);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">スキした</button>
+        <button onclick="event.preventDefault();handleReturnAnswer('${urlname}',false,this)" style="padding:10px 24px;background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">まだ</button>
       </div>
     </div>`;
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   document.body.appendChild(modal);
+  modal.querySelector('button').focus();
 }
 
 function handleReturnAnswer(urlname, liked, btn) {
