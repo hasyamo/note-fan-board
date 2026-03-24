@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>note fan board</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=0.1.0">
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <h1 class="header-title">note <span class="accent">fan board</span></h1>
+    <p class="header-sub" id="headerSub">昨日、あなたに会いに来た人がわかる。</p>
+    <div class="header-meta">
+      <span id="creatorName">--</span> / <span id="followerCount">--</span> followers / updated: <span id="lastUpdate">--</span>
+    </div>
+  </header>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-bar-btn active" data-tab="today">Today</button>
+    <button class="tab-bar-btn" data-tab="fans">Fans</button>
+    <button class="tab-bar-btn" data-tab="ranking">Ranking</button>
+  </div>
+
+  <!-- Today Tab -->
+  <div class="tab-content active" id="tabToday">
+    <div class="container">
+      <div id="todayContent"><div class="loading">読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- Fans Tab -->
+  <div class="tab-content" id="tabFans">
+    <div class="container">
+      <div id="fansContent"><div class="loading">読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- Ranking Tab -->
+  <div class="tab-content" id="tabRanking">
+    <div class="container">
+      <div class="ranking-header">
+        <div class="ranking-tagline">早くスキした人が、勝ち。</div>
+        <div class="ranking-rule">記事の公開から早くスキしてくれた人ほど、ポイントが高くなります。</div>
+      </div>
+      <div id="rankingContent"><div class="loading">読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-copy">&copy; おはようカノジョ / hasyamo</div>
+  </footer>
+</div>
+
+<!-- Suki Screenshot Modal -->
+<div id="sukiScreenshotModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeScreenshot()">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeScreenshot()">&times;</button>
+    <div id="sukiScreenshotContent"></div>
+  </div>
+</div>
+
+<script src="app.js?v=0.1.0"></script>
+</body>
+</html>
