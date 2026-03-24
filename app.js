@@ -48,7 +48,7 @@ function getRankingDate(likedAt) {
 
 // ===== Character =====
 const CHAR_FILES = { you: 'tue', rinka: 'thu', runa: 'fri' };
-const CHAR_NAMES = { you: '陽', rinka: '凛華', runa: 'るな' };
+const CHAR_NAMES = { you: '陽（朝の報告）', rinka: '凛華（関係維持 / 辛口）', runa: 'るな（感謝 / 盛り上げ）' };
 
 function charImgSrc(charKey) {
   // Use ohayo-kanojo character images hosted on v1
@@ -137,15 +137,16 @@ function getSukiMultiplier(likedAt, noteKey) {
 }
 
 // ===== Profile Image =====
+const PROXY_URL = 'https://falling-mouse-736b.hasyamo.workers.dev/';
 const profileCache = {};
 async function getProfileImageUrl(urlname) {
   if (!urlname) return null;
   if (profileCache[urlname]) return profileCache[urlname];
   try {
-    const resp = await fetch(`https://note-api-proxy.hasyamo.workers.dev/profile?id=${urlname}`);
+    const resp = await fetch(`${PROXY_URL}?id=${encodeURIComponent(urlname)}`);
     if (resp.ok) {
       const data = await resp.json();
-      const url = data?.data?.user_profile_image_path || null;
+      const url = data?.data?.profileImageUrl || null;
       if (url) profileCache[urlname] = url;
       return url;
     }
@@ -169,7 +170,7 @@ function switchTab(tabName) {
   const tabId = 'tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
   const tabEl = document.getElementById(tabId);
   if (tabEl) tabEl.classList.add('active');
-  history.replaceState(null, '', location.pathname + '#' + tabName);
+  history.replaceState(null, '', location.pathname + location.search + '#' + tabName);
 
   if (tabName === 'today') renderToday();
   if (tabName === 'fans') renderFans();
@@ -200,14 +201,43 @@ function renderToday() {
   });
   const yesterdayUsers = Object.values(userMap).sort((a, b) => b.count - a.count);
 
-  // Character line
+  // Classify yesterday's users
+  const userWeeks = buildUserWeeks();
+  const yesterdayClassified = {};
+  yesterdayUsers.forEach(u => {
+    // Find uid from likesData
+    const like = yesterdayLikes.find(l => (l.like_username || l.like_user_urlname) === u.name || l.like_user_urlname === u.urlname);
+    if (like) {
+      yesterdayClassified[like.like_user_id] = classifyUser(like.like_user_id, yesterday, userWeeks);
+    }
+  });
+  const returnUsers = yesterdayUsers.filter(u => {
+    const like = yesterdayLikes.find(l => l.like_user_urlname === u.urlname);
+    return like && yesterdayClassified[like.like_user_id] === 'return';
+  });
+  const newUsers = yesterdayUsers.filter(u => {
+    const like = yesterdayLikes.find(l => l.like_user_urlname === u.urlname);
+    return like && yesterdayClassified[like.like_user_id] === 'new';
+  });
+  const regularUsers = yesterdayUsers.filter(u => {
+    const like = yesterdayLikes.find(l => l.like_user_urlname === u.urlname);
+    return like && yesterdayClassified[like.like_user_id] === 'regular';
+  });
+
+  // Character line (priority: return > new > regular > count > 0)
   let youLine;
-  if (yesterdayUsers.length >= 5) {
-    youLine = `昨日${yesterdayUsers.length}人も来てくれたよ！嬉しいね！`;
+  if (returnUsers.length > 0) {
+    youLine = `久しぶりの人が戻ってきたよ！${returnUsers[0].name}さん、見に行こ！`;
+  } else if (newUsers.length > 0) {
+    youLine = `昨日、初めての人が来てくれたよ！${newUsers[0].name}さん、覚えておこ！`;
+  } else if (regularUsers.length > 0) {
+    youLine = `昨日も${regularUsers[0].name}さん来てくれてたよ！いつもありがとだね！`;
+  } else if (yesterdayUsers.length >= 5) {
+    youLine = `昨日${yesterdayUsers.length}人も来てくれたよ！にぎやかだったね！`;
   } else if (yesterdayUsers.length >= 1) {
-    youLine = `昨日${yesterdayUsers.length}人来てくれたよ！見に行ってみよ！`;
+    youLine = `昨日${yesterdayUsers.length}人来てくれたよ！一人ひとり、ちゃんと見よ！`;
   } else {
-    youLine = `昨日はスキがなかったみたい。でも大丈夫、今日の記事で変わるよ！`;
+    youLine = `昨日はお休みだったみたい。でも大丈夫、今日の記事で変わるよ！`;
   }
 
   let html = naviHTML('you', youLine);
@@ -225,7 +255,11 @@ function renderToday() {
 
     // Follower chart
     if (followersData.length >= 2) {
-      html += `<div class="chart-wrap" style="margin-top:12px"><canvas id="followerCanvas"></canvas></div>`;
+      html += `<div style="display:flex;gap:16px;font-size:10px;color:var(--text-muted);margin-top:12px;margin-bottom:4px">
+        <span><span style="color:var(--accent-cyan)">━</span> フォロワー</span>
+        <span><span style="color:var(--accent-pink);opacity:0.5">█</span> もらったスキ数</span>
+      </div>`;
+      html += `<div class="chart-wrap"><canvas id="followerCanvas"></canvas></div>`;
     }
     html += `</div>`;
   }
@@ -263,6 +297,15 @@ function drawFollowerChart() {
   const max = Math.max(...values);
   const range = max - min || 1;
 
+  // Build daily suki counts
+  const sukiByDate = {};
+  likesData.forEach(l => {
+    const d = (l.liked_at || '').slice(0, 10);
+    if (d) sukiByDate[d] = (sukiByDate[d] || 0) + 1;
+  });
+  const sukiValues = data.map(d => sukiByDate[d.date] || 0);
+  const sukiMax = Math.max(...sukiValues, 1);
+
   const ctx = canvas.getContext('2d');
   const W = canvas.parentElement.clientWidth;
   const H = 160;
@@ -270,11 +313,11 @@ function drawFollowerChart() {
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.scale(2, 2);
 
-  const pad = { t: 10, b: 25, l: 36, r: 10 };
+  const pad = { t: 10, b: 25, l: 36, r: 32 };
   const cw = W - pad.l - pad.r;
   const ch = H - pad.t - pad.b;
 
-  // Grid
+  // Left axis grid (followers)
   ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 0.5;
   for (let i = 0; i <= 4; i++) {
     const y = pad.t + ch * i / 4;
@@ -283,28 +326,45 @@ function drawFollowerChart() {
     ctx.fillText(Math.round(max - range * i / 4), pad.l - 4, y + 4);
   }
 
+  // Right axis labels (suki count)
+  ctx.fillStyle = '#fd79a8'; ctx.font = '10px JetBrains Mono'; ctx.textAlign = 'left';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch * i / 4;
+    ctx.fillText(Math.round(sukiMax * (1 - i / 4)), W - pad.r + 4, y + 4);
+  }
+
   // X labels
   ctx.fillStyle = '#666'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
   const step = Math.max(1, Math.floor(labels.length / 5));
   labels.forEach((l, i) => { if (i % step === 0 || i === labels.length - 1) ctx.fillText(l, pad.l + cw * i / (labels.length - 1), H - 6); });
 
-  // Line fill
+  // Suki bars
+  const barW = Math.max(2, cw / labels.length * 0.5);
+  sukiValues.forEach((v, i) => {
+    if (v === 0) return;
+    const x = pad.l + cw * i / (labels.length - 1);
+    const barH = (v / sukiMax) * ch;
+    ctx.fillStyle = 'rgba(253,121,168,0.25)';
+    ctx.fillRect(x - barW / 2, pad.t + ch - barH, barW, barH);
+  });
+
+  // Follower line fill
   ctx.beginPath();
   values.forEach((v, i) => { const x = pad.l + cw * i / (values.length - 1); const y = pad.t + ch * (1 - (v - min) / range); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
   ctx.lineTo(pad.l + cw, pad.t + ch); ctx.lineTo(pad.l, pad.t + ch); ctx.closePath();
   const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
-  grad.addColorStop(0, 'rgba(0,212,255,0.2)'); grad.addColorStop(1, 'rgba(0,212,255,0.02)');
+  grad.addColorStop(0, 'rgba(0,212,255,0.25)'); grad.addColorStop(1, 'rgba(0,212,255,0.02)');
   ctx.fillStyle = grad; ctx.fill();
 
-  // Line
+  // Follower line
   ctx.beginPath();
   values.forEach((v, i) => { const x = pad.l + cw * i / (values.length - 1); const y = pad.t + ch * (1 - (v - min) / range); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
-  ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
 
   // End dot
   const lx = pad.l + cw;
   const ly = pad.t + ch * (1 - (values[values.length - 1] - min) / range);
-  ctx.beginPath(); ctx.arc(lx, ly, 3, 0, Math.PI * 2); ctx.fillStyle = '#00d4ff'; ctx.fill();
+  ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI * 2); ctx.fillStyle = '#00d4ff'; ctx.fill();
 }
 
 // ===== Fans Tab =====
@@ -368,21 +428,37 @@ function renderFans() {
   });
   atRiskUsers.sort((a, b) => b.followerCount - a.followerCount);
 
-  // Character line
+  // Character line (priority: at-risk name > new name > return name > regular name > fallback)
   let rinkaLine;
   if (atRiskUsers.length >= 3) {
-    rinkaLine = `……${atRiskUsers.length}人離れかけてるわよ。放っておくの？`;
+    rinkaLine = `……${atRiskUsers[0].name}さん含め${atRiskUsers.length}人、最近来てないわよ。放っておくの？`;
   } else if (atRiskUsers.length >= 1) {
-    rinkaLine = `${atRiskUsers.length}人、最近来てないわ。……気づいてる？`;
+    rinkaLine = `${atRiskUsers[0].name}さん、最近来てないわ。……気づいてる？`;
+  } else if (returnList.length >= 1) {
+    rinkaLine = `${returnList[0].name}さんが戻ってきたわ。……ちゃんと覚えてなさいよ。`;
   } else if (newList.length >= 3) {
     rinkaLine = `新しい人が${newList.length}人。……悪くないわね。`;
+  } else if (newList.length >= 1) {
+    rinkaLine = `${newList[0].name}さんが初めて来たわ。……ちゃんと覚えなさい。`;
   } else {
     rinkaLine = `今週のスキ、ちゃんと確認しなさい。`;
   }
 
   let html = naviHTML('rinka', rinkaLine);
 
-  // Tabs
+  // Tabs (5 tabs including at-risk)
+  const atRiskListHTML = atRiskUsers.length > 0 ? atRiskUsers.slice(0, 15).map(u => {
+    const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
+    return `<div class="person">
+      <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
+      <div class="person-name">
+        <a href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">最終スキ: ${u.lastSeen}</div>
+      </div>
+      <div class="person-stats">${u.followerCount.toLocaleString()} followers</div>
+    </div>`;
+  }).join('') : '<div class="no-data">離脱危機なし</div>';
+
   html += `<div class="section">
     <div class="section-title">今週のスキしてくれた人 <span style="font-weight:400;color:var(--text-muted)">${range.start}〜${range.end}</span></div>
     <div class="people-tabs">
@@ -390,30 +466,14 @@ function renderFans() {
       <div class="people-tab" onclick="switchPeopleTab(this,'return')">復帰<br>(${returnList.length})</div>
       <div class="people-tab" onclick="switchPeopleTab(this,'regular')">常連<br>(${regList.length})</div>
       <div class="people-tab" onclick="switchPeopleTab(this,'occasional')">たまに<br>(${occasionalList.length})</div>
+      <div class="people-tab" onclick="switchPeopleTab(this,'atrisk')" style="color:var(--accent-amber)">離脱危機<br>(${atRiskUsers.length})</div>
     </div>
     <div class="people-content active" data-tab="new">${personListHTML(newList, '新規スキなし')}</div>
     <div class="people-content" data-tab="return" style="display:none">${personListHTML(returnList, '復帰なし')}</div>
     <div class="people-content" data-tab="regular" style="display:none">${personListHTML(regList, '常連なし')}</div>
     <div class="people-content" data-tab="occasional" style="display:none">${personListHTML(occasionalList, '該当なし')}</div>
+    <div class="people-content" data-tab="atrisk" style="display:none">${atRiskListHTML}</div>
   </div>`;
-
-  // At risk
-  if (atRiskUsers.length > 0) {
-    html += `<div class="section">
-      <div class="section-title" style="color:var(--accent-amber)">離脱危機</div>
-      ${atRiskUsers.slice(0, 10).map(u => {
-        const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
-        return `<div class="person">
-          <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-          <div class="person-name">
-            <a href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">最終スキ: ${u.lastSeen}</div>
-          </div>
-          <div class="person-stats">${u.followerCount.toLocaleString()} followers</div>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }
 
   el.innerHTML = html;
   loadAvatars();
@@ -597,7 +657,7 @@ function openScreenshot() {
         <div>${left.map((u,i) => cardHTML(u,i)).join('')}</div>
         <div>${right.map((u,i) => cardHTML(u,i+5)).join('')}</div>
       </div>
-      <div style="text-align:center;margin-top:16px;font-size:10px;color:#ccc;letter-spacing:2px">note fan board</div>
+      <div style="text-align:center;margin-top:16px;font-size:10px;color:#ccc;letter-spacing:2px">観測は続く。 / hasyamo</div>
     </div>`;
 
   document.getElementById('sukiScreenshotContent').innerHTML = html;
@@ -710,8 +770,8 @@ async function init() {
     renderToday();
   }
 
-  // Register service worker
-  if ('serviceWorker' in navigator) {
+  // Register service worker (production only)
+  if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 }
