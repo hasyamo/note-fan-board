@@ -845,6 +845,25 @@ async function init() {
     }
   } catch(e) {}
 
+  // Dynamic manifest with user-specific start_url
+  const dynamicManifest = {
+    name: '観測は続く。',
+    short_name: '観測は続く。',
+    description: '昨日、あなたに会いに来た人。',
+    start_url: '/note-fan-board/?user=' + urlname,
+    display: 'standalone',
+    background_color: '#0a0a14',
+    theme_color: '#0a0a14',
+    icons: [
+      { src: 'images/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: 'images/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  };
+  const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
+  const manifestUrl = URL.createObjectURL(manifestBlob);
+  const existingManifest = document.querySelector('link[rel="manifest"]');
+  if (existingManifest) existingManifest.href = manifestUrl;
+
   await loadData(urlname);
 
   // Update header
