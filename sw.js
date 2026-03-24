@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fan-board-v1';
+const CACHE_NAME = 'fan-board-v2';
 const STATIC_ASSETS = [
   '/note-fan-board/',
   '/note-fan-board/index.html',

@@ -1,7 +1,7 @@
 {
-  "name": "note fan board",
-  "short_name": "fan board",
-  "description": "昨日、あなたに会いに来た人がわかる。",
+  "name": "観測は続く。",
+  "short_name": "観測は続く。",
+  "description": "昨日、あなたに会いに来た人。",
   "start_url": "/note-fan-board/",
   "display": "standalone",
   "background_color": "#0a0a14",
