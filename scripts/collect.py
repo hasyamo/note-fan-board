@@ -276,6 +276,9 @@ def collect_creator(urlname):
     save_articles_prev(urlname, articles)
 
 
+MAX_THREADS = 3
+
+
 def main():
     print(f"=== note-fan-board collector ({TODAY}) ===")
 
@@ -284,16 +287,38 @@ def main():
         sys.exit(1)
 
     creators = load_creators()
-    print(f"Creators: {len(creators)}")
+    print(f"Creators: {len(creators)}, threads: {MAX_THREADS}")
 
-    for urlname in creators:
-        try:
-            collect_creator(urlname)
-        except Exception as e:
-            print(f"  Error: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
+    if len(creators) <= MAX_THREADS:
+        # Few creators: run sequentially
+        for urlname in creators:
+            try:
+                collect_creator(urlname)
+            except Exception as e:
+                print(f"  Error: {e}")
+                import traceback
+                traceback.print_exc()
+    else:
+        # Distribute creators across threads (round-robin)
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        groups = [[] for _ in range(MAX_THREADS)]
+        for i, urlname in enumerate(creators):
+            groups[i % MAX_THREADS].append(urlname)
+
+        def run_group(group_id, urlnames):
+            for urlname in urlnames:
+                try:
+                    collect_creator(urlname)
+                except Exception as e:
+                    print(f"  Error ({urlname}): {e}")
+                    import traceback
+                    traceback.print_exc()
+
+        with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+            futures = [executor.submit(run_group, i, g) for i, g in enumerate(groups)]
+            for f in as_completed(futures):
+                f.result()
 
     print(f"\n=== Done ===")
 
