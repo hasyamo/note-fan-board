@@ -122,17 +122,14 @@ def save_articles(urlname, articles):
 def fetch_all_likes_for_article(note_key):
     all_likes = []
     seen_ids = set()
-    start = 0
-    total_count = None
+    page = 1
 
     while True:
-        resp = fetch_json(f"{BASE_URL}/api/v3/notes/{note_key}/likes?start={start}&size={LIKES_API_SIZE}")
+        resp = fetch_json(f"{BASE_URL}/api/v3/notes/{note_key}/likes?page={page}&per={LIKES_API_SIZE}")
         if resp is None:
             break
         data = resp.get("data", {})
         likes = data.get("likes", [])
-        if total_count is None:
-            total_count = data.get("extra_fields", {}).get("like_count", 0)
         if not likes:
             break
 
@@ -153,9 +150,9 @@ def fetch_all_likes_for_article(note_key):
                 "follower_count": user.get("follower_count", 0),
             })
 
-        if len(all_likes) >= total_count or new_in_page == 0:
+        if new_in_page == 0:
             break
-        start += LIKES_API_SIZE
+        page += 1
         time.sleep(SLEEP_BETWEEN_REQUESTS)
 
     return all_likes
