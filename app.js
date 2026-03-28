@@ -882,7 +882,7 @@ async function init() {
   try {
     const creatorsRes = await fetch('./data/creators.csv?t=' + Date.now());
     if (creatorsRes.ok) {
-      creators = parseCSV(await creatorsRes.text()).map(r => r.urlname);
+      creators = parseCSV(await creatorsRes.text()).map(r => r.urlname).filter(u => u && !u.startsWith('#'));
     }
   } catch(e) {}
 

@@ -56,7 +56,7 @@ def load_creators():
         reader = csv.DictReader(f)
         for row in reader:
             urlname = row.get("urlname", "").strip()
-            if urlname:
+            if urlname and not urlname.startswith("#"):
                 creators.append(urlname)
     return creators
 
