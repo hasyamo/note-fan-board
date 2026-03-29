@@ -463,6 +463,9 @@ function renderFans() {
     </div>`;
   }).join('') : '<div class="no-data">離脱危機なし</div>';
 
+  // Store lists for "load more"
+  _peopleLists = { new: newList, return: returnList, regular: regList, occasional: occasionalList };
+
   html += `<div class="section">
     <div class="section-title">今週のスキしてくれた人 <span style="font-weight:400;color:var(--text-muted)">${range.start}〜${range.end}</span></div>
     <div class="people-tabs">
@@ -483,21 +486,51 @@ function renderFans() {
   loadAvatars();
 }
 
+const PERSON_PAGE_SIZE = 20;
+
+function personCardHTML(u) {
+  const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
+  const avatarClass = 'person-avatar' + (u.category === 'regular' ? ' regular' : '');
+  const returnStatus = getSukiReturnStatus(u.urlname);
+  const statusHTML = returnStatus.liked
+    ? '<div style="color:var(--accent-green);font-size:11px">✅ スキ返し済</div>'
+    : '<div style="color:var(--accent-amber);font-size:11px">❌ 未スキ返し</div>';
+  return `<div class="person">
+    <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
+    <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener" onclick="setPendingVisit('${u.urlname}','${u.name}')">${u.name}</a></div>
+    <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers<br>${statusHTML}</div>
+  </div>`;
+}
+
+let _peopleLists = {};
+
+function loadMorePeople(btn) {
+  const content = btn.closest('.people-content');
+  const tab = content.dataset.tab;
+  const list = _peopleLists[tab] || [];
+  const shown = parseInt(btn.dataset.shown) || PERSON_PAGE_SIZE;
+  const next = list.slice(shown, shown + PERSON_PAGE_SIZE);
+  const newShown = shown + next.length;
+  const remaining = list.length - newShown;
+
+  btn.insertAdjacentHTML('beforebegin', next.map(u => personCardHTML(u)).join(''));
+
+  if (remaining > 0) {
+    btn.dataset.shown = newShown;
+    btn.textContent = `もっと見る（残り${remaining}人）`;
+  } else {
+    btn.remove();
+  }
+  loadAvatars();
+}
+
 function personListHTML(list, emptyMsg) {
   if (list.length === 0) return `<div class="no-data">${emptyMsg}</div>`;
-  return list.slice(0, 20).map(u => {
-    const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
-    const avatarClass = 'person-avatar' + (u.category === 'regular' ? ' regular' : '');
-    const returnStatus = getSukiReturnStatus(u.urlname);
-    const statusHTML = returnStatus.liked
-      ? '<div style="color:var(--accent-green);font-size:11px">✅ スキ返し済</div>'
-      : '<div style="color:var(--accent-amber);font-size:11px">❌ 未スキ返し</div>';
-    return `<div class="person">
-      <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-      <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener" onclick="setPendingVisit('${u.urlname}','${u.name}')">${u.name}</a></div>
-      <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers<br>${statusHTML}</div>
-    </div>`;
-  }).join('');
+  const initial = list.slice(0, PERSON_PAGE_SIZE).map(u => personCardHTML(u)).join('');
+  const moreBtn = list.length > PERSON_PAGE_SIZE
+    ? `<button class="more-btn" onclick="loadMorePeople(this)" data-list-id="${Math.random().toString(36).slice(2)}" data-shown="${PERSON_PAGE_SIZE}">もっと見る（残り${list.length - PERSON_PAGE_SIZE}人）</button>`
+    : '';
+  return initial + moreBtn;
 }
 
 function switchPeopleTab(btn, tab) {
