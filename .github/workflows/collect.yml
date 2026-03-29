@@ -2,8 +2,18 @@ name: Collect Fan Data
 
 on:
   schedule:
-    # 2:00 JST = 17:00 UTC前日
-    - cron: '0 17 * * *'
+    # 5:00 JST = 20:00 UTC前日
+    - cron: '0 20 * * *'
+    # 9:00 JST = 0:00 UTC
+    - cron: '0 0 * * *'
+    # 13:00 JST = 4:00 UTC
+    - cron: '0 4 * * *'
+    # 17:00 JST = 8:00 UTC
+    - cron: '0 8 * * *'
+    # 21:00 JST = 12:00 UTC
+    - cron: '0 12 * * *'
+    # 1:00 JST = 16:00 UTC
+    - cron: '0 16 * * *'
   workflow_dispatch: # 手動実行用
 
 permissions:
