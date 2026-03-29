@@ -933,17 +933,18 @@ async function init() {
   }
 
   // Dynamic manifest with user-specific start_url
+  const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/');
   const dynamicManifest = {
     name: '観測は続く。',
     short_name: '観測は続く。',
     description: '昨日、あなたに会いに来た人。',
-    start_url: '/note-fan-board/?user=' + urlname,
+    start_url: base + '?user=' + urlname,
     display: 'standalone',
     background_color: '#0a0a14',
     theme_color: '#0a0a14',
     icons: [
-      { src: 'images/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { src: 'images/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: base + 'images/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: base + 'images/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
   };
   const manifestBlob = new Blob([JSON.stringify(dynamicManifest)], { type: 'application/json' });
