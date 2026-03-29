@@ -29,6 +29,10 @@ function getTodayJST() {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
   const jst = new Date(utc + 9 * 3600000);
+  // 5:00 JST boundary: before 5am counts as previous day
+  if (jst.getHours() < 5) {
+    jst.setDate(jst.getDate() - 1);
+  }
   return formatDate(jst);
 }
 
