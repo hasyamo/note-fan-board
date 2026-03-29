@@ -795,7 +795,7 @@ async function loadData(urlname) {
     const artRes = await fetch(base + 'articles.csv' + cacheBust);
     if (artRes.ok) {
       articlesData = parseCSV(await artRes.text()).map(r => ({
-        key: r.key, title: r.title || '', published_at: r.published_at || '',
+        date: r.date || '', key: r.key, title: r.title || '', published_at: r.published_at || '',
         like_count: parseInt(r.like_count) || 0, comment_count: parseInt(r.comment_count) || 0,
       }));
     }
