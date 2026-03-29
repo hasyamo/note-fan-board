@@ -246,6 +246,7 @@ def save_articles_prev(urlname, articles):
 # ===== Main =====
 
 def collect_creator(urlname):
+    start = time.time()
     print(f"\n--- {urlname} ---")
     user_dir = os.path.join(DATA_DIR, urlname)
     os.makedirs(user_dir, exist_ok=True)
@@ -274,6 +275,7 @@ def collect_creator(urlname):
 
     # 4. Save prev for next diff
     save_articles_prev(urlname, articles)
+    print(f"  Done: {time.time() - start:.1f}s")
 
 
 MAX_THREADS = 3
