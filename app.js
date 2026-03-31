@@ -117,6 +117,7 @@ function getPeriodRange(period) {
   }
   if (period === 'lastmonth') {
     const d = parseDate(today);
+    d.setDate(1);
     d.setMonth(d.getMonth() - 1);
     const start = formatDate(d).slice(0, 7) + '-01';
     const endD = parseDate(today.slice(0, 7) + '-01');
