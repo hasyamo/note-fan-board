@@ -469,7 +469,7 @@ function renderFans() {
   _peopleLists = { new: newList, return: returnList, regular: regList, occasional: occasionalList };
 
   html += `<div class="section">
-    <div class="section-title">今週のスキしてくれた人<br><span style="font-weight:400;color:var(--text-muted);font-size:0.85em">${range.start}〜${range.end}</span></div>
+    <div class="section-title">今週のスキしてくれた人<br><span style="font-weight:400;color:var(--text-muted);font-size:0.85em">${getDayLabel(range.start)}〜${getDayLabel(range.end)}</span></div>
     <div class="people-tabs">
       <div class="people-tab${activePeopleTab==='new'?' active':''}" onclick="switchPeopleTab(this,'new')">新規<br>(${newList.length})</div>
       <div class="people-tab${activePeopleTab==='return'?' active':''}" onclick="switchPeopleTab(this,'return')">復帰<br>(${returnList.length})</div>
