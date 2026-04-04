@@ -61,6 +61,14 @@ a:hover { text-decoration: underline; }
   color: var(--text-muted);
   margin-top: 8px;
 }
+.meta-break { display: none; }
+.meta-updated { margin-left: 4px; }
+.meta-updated::before { content: "/ "; }
+@media (max-width: 480px) {
+  .meta-break { display: block; }
+  .meta-updated { margin-left: 0; }
+  .meta-updated::before { content: none; }
+}
 
 /* ===== Tab Bar ===== */
 .tab-bar {

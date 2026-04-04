@@ -4,6 +4,7 @@
 let articlesData = [];
 let likesData = [];
 let followersData = [];
+let lastUpdated = '--';
 let creatorUrlname = '';
 
 // ===== Date Utils =====
@@ -849,6 +850,12 @@ async function loadData(urlname) {
         date: r.date, follower_count: parseInt(r.follower_count) || 0,
       }));
     }
+
+    // Last updated
+    const updRes = await fetch(base + 'last_updated.txt' + cacheBust);
+    if (updRes.ok) {
+      lastUpdated = (await updRes.text()).trim();
+    }
   } catch(e) {
     console.error('Data load error:', e);
   }
@@ -960,9 +967,7 @@ async function init() {
   if (followersData.length > 0) {
     document.getElementById('followerCount').textContent = followersData[followersData.length - 1].follower_count;
   }
-  if (articlesData.length > 0) {
-    document.getElementById('lastUpdate').textContent = articlesData[0].date || '--';
-  }
+  document.getElementById('lastUpdate').textContent = lastUpdated;
 
   // Render active tab
   const hash = location.hash.replace('#', '');
