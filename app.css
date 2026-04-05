@@ -363,6 +363,13 @@ a.person:hover {
   color: var(--text-muted);
   letter-spacing: 2px;
 }
+.footer-version {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  opacity: 0.5;
+}
 
 /* ===== Loading / Empty ===== */
 .loading, .no-data {
