@@ -296,7 +296,10 @@ function renderToday() {
 function drawFollowerChart() {
   const canvas = document.getElementById('followerCanvas');
   if (!canvas) return;
-  const data = followersData.slice(-28);
+  // Deduplicate: keep last record per day
+  const byDate = {};
+  followersData.forEach(d => { byDate[d.date] = d.follower_count; });
+  const data = Object.entries(byDate).sort((a, b) => a[0].localeCompare(b[0])).slice(-28).map(([date, follower_count]) => ({ date, follower_count }));
   const labels = data.map(d => d.date.slice(5));
   const values = data.map(d => d.follower_count);
   const min = Math.min(...values);
