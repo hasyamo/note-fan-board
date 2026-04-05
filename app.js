@@ -279,7 +279,7 @@ function renderToday() {
       const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
       return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
         <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-        <div class="person-name">${u.name}</div>
+        <div class="person-name"><span class="person-name-text">${u.name}</span></div>
         <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers</div>
       </a>`;
     }).join('');
@@ -461,7 +461,7 @@ function renderFans() {
     return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
       <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
       <div class="person-name">
-        ${u.name}
+        <span class="person-name-text">${u.name}</span>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">最終スキ: ${u.lastSeen}</div>
       </div>
       <div class="person-stats">${u.followerCount.toLocaleString()} followers</div>
@@ -502,7 +502,7 @@ function personCardHTML(u) {
     : '<div style="color:var(--accent-amber);font-size:11px">❌ 未スキ返し</div>';
   return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener" onclick="setPendingVisit('${u.urlname}','${u.name}')">
     <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-    <div class="person-name">${u.name}</div>
+    <div class="person-name"><span class="person-name-text">${u.name}</span></div>
     <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers<br>${statusHTML}</div>
   </a>`;
 }
@@ -648,7 +648,7 @@ function rankCard(u, i, ranked, userCategory) {
   return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
     <div class="person-rank">${rank}</div>
     <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-    <div class="person-name">${u.name}${badge}</div>
+    <div class="person-name"><span class="person-name-text">${u.name}</span>${badge}</div>
     <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()}<br>followers</div>
     <div class="person-score">${Math.round(u.score * 2)}<span>pt</span></div>
   </a>`;
