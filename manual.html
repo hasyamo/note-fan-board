@@ -33,12 +33,23 @@ body {
   margin: 0 auto;
 }
 h1 {
-  font-size: 22px;
+  font-family: var(--font-sans);
+  font-size: 28px;
   font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--text-primary);
+}
+h1 .h1-lead { font-size: 1.4em; font-weight: 900; }
+h1 .accent { color: var(--accent-cyan); }
+.sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-top: 2px;
   margin-bottom: 24px;
   text-align: center;
 }
-h1 .accent { color: var(--accent-cyan); }
 h2 {
   font-family: var(--font-mono);
   font-size: 14px;
@@ -122,30 +133,68 @@ ul li::before {
   text-decoration: none;
 }
 .back:hover { text-decoration: underline; }
+.navi {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.navi-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.navi-body { flex: 1; min-width: 0; }
+.navi-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.navi-line {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
 </style>
 </head>
 <body>
 
-<h1>使い方<span class="accent">。</span></h1>
+<h1><span class="h1-lead">観</span>測は<span class="h1-lead accent">続</span><span class="accent">く。</span></h1>
+<p class="sub">使い方</p>
 
 <div class="section">
-  <h2>Data Update</h2>
-  <p>データは1日6回（4時間ごと）自動で更新されます。ヘッダーの updated に最終更新日時が表示されます。</p>
-  <p>日付の切り替わりは朝5:00（JST）です。深夜0:00〜4:59のスキは前日分としてカウントされます。</p>
+  <h2>データ更新</h2>
+  <div class="navi">
+    <img class="navi-img" src="images/eyes-mon.webp" alt="月子">
+    <div class="navi-body">
+      <div class="navi-name">月子</div>
+      <div class="navi-line">データは1日6回、4時間ごとに更新されるわ。ヘッダーの updated を見なさい。<br>……日付の切り替わりは朝5:00よ。深夜0:00〜4:59のスキは前日分。覚えておいて。</div>
+    </div>
+  </div>
 </div>
 
 <div class="section">
   <h2>Today</h2>
-  <p>昨日スキしてくれた人の一覧と、フォロワー数の推移を確認できます。</p>
-  <ul>
-    <li>フォロワー数の横に前回からの増減が表示されます</li>
-    <li>グラフの折れ線がフォロワー推移、棒グラフがもらったスキ数です</li>
-  </ul>
+  <div class="navi">
+    <img class="navi-img" src="images/eyes-tue.webp" alt="陽">
+    <div class="navi-body">
+      <div class="navi-name">陽</div>
+      <div class="navi-line">昨日スキしてくれた人の一覧と、フォロワー数の推移が見られるよ！<br>フォロワー数の横に前回からの増減が出てるの。グラフの折れ線がフォロワー推移で、棒グラフがもらったスキ数だよ！</div>
+    </div>
+  </div>
 </div>
 
 <div class="section">
   <h2>Fans</h2>
-  <p>今週スキしてくれた人を、過去の行動パターンから自動で分類します。</p>
+  <div class="navi">
+    <img class="navi-img" src="images/eyes-thu.webp" alt="凛華">
+    <div class="navi-body">
+      <div class="navi-name">凛華</div>
+      <div class="navi-line">……今週スキしてくれた人を、過去の行動パターンから分類してる。</div>
+    </div>
+  </div>
   <ul>
     <li><span class="label label-new">新規</span>過去にスキした記録がない人</li>
     <li><span class="label label-return">復帰</span>以前スキしてくれていたが、最近4週はスキがなく、今週戻ってきた人</li>
@@ -153,12 +202,18 @@ ul li::before {
     <li><span class="label label-occasional">たまに</span>上記のどれにも当てはまらない人</li>
     <li><span class="label label-atrisk">離脱危機</span>今週・直近4週ともスキなし。ただし、それ以前は頻繁に来ていた人</li>
   </ul>
-  <p>スキ返し状態は、あなたがその人の記事にスキしたかどうかを表示します。</p>
+  <p>スキ返し状態は、あなたがその人の記事にスキしたかどうか。……端末のブラウザに保存されるから、別の端末では反映されない。覚えておいて。</p>
 </div>
 
 <div class="section">
   <h2>Ranking</h2>
-  <p>期間内のスキをポイント化してランキング表示します。記事の公開から早くスキしてくれた人ほど高ポイントになります。</p>
+  <div class="navi">
+    <img class="navi-img" src="images/eyes-fri.webp" alt="るな">
+    <div class="navi-body">
+      <div class="navi-name">るな</div>
+      <div class="navi-line">期間内のスキをポイント化してランキングにしてるよ！記事の公開から早くスキしてくれた人ほど高ポイントになるんだよ！</div>
+    </div>
+  </div>
   <table class="score-table">
     <tr><th>スキのタイミング</th><th>倍率</th></tr>
     <tr><td>公開から1時間以内</td><td>&times;3</td></tr>
@@ -166,7 +221,8 @@ ul li::before {
     <tr><td>24時間以内</td><td>&times;1.5</td></tr>
     <tr><td>それ以降</td><td>&times;1</td></tr>
   </table>
-  <p>今週・先週・今月・先月の4期間を切り替えて確認できます。</p>
+  <p>今週・先週・今月・先月の4期間を切り替えて確認できるよ！</p>
+
 </div>
 
 <a class="back" href="./">← 戻る</a>

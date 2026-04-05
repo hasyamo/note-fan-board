@@ -300,7 +300,10 @@ function drawFollowerChart() {
   const byDate = {};
   followersData.forEach(d => { byDate[d.date] = d.follower_count; });
   const data = Object.entries(byDate).sort((a, b) => a[0].localeCompare(b[0])).slice(-28).map(([date, follower_count]) => ({ date, follower_count }));
-  const labels = data.map(d => d.date.slice(5));
+  const labels = data.map(d => {
+    const dt = parseDate(d.date);
+    return `${dt.getMonth()+1}/${dt.getDate()}\n${DAYS_JA[dt.getDay()]}`;
+  });
   const values = data.map(d => d.follower_count);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -322,7 +325,7 @@ function drawFollowerChart() {
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.scale(2, 2);
 
-  const pad = { t: 10, b: 25, l: 36, r: 32 };
+  const pad = { t: 10, b: 35, l: 36, r: 32 };
   const cw = W - pad.l - pad.r;
   const ch = H - pad.t - pad.b;
 
@@ -345,7 +348,14 @@ function drawFollowerChart() {
   // X labels
   ctx.fillStyle = '#666'; ctx.font = '9px JetBrains Mono'; ctx.textAlign = 'center';
   const step = Math.max(1, Math.floor(labels.length / 5));
-  labels.forEach((l, i) => { if (i % step === 0 || i === labels.length - 1) ctx.fillText(l, pad.l + cw * i / (labels.length - 1), H - 6); });
+  labels.forEach((l, i) => {
+    if (i % step === 0 || i === labels.length - 1) {
+      const [datePart, dayPart] = l.split('\n');
+      const x = pad.l + cw * i / (labels.length - 1);
+      ctx.fillText(datePart, x, H - 14);
+      ctx.fillText(dayPart, x, H - 4);
+    }
+  });
 
   // Suki bars
   const barW = Math.max(2, cw / labels.length * 0.5);
@@ -437,18 +447,29 @@ function renderFans() {
   });
   atRiskUsers.sort((a, b) => b.followerCount - a.followerCount);
 
-  // Character line (priority: at-risk name > new name > return name > regular name > fallback)
+  // Pick first unreturned user from a list
+  function pickUnreturned(list) {
+    return list.find(u => !getSukiReturnStatus(u.urlname).liked);
+  }
+
+  // Character line (priority: return > new > at-risk > regular > fallback)
   let rinkaLine;
-  if (atRiskUsers.length >= 3) {
-    rinkaLine = `……${atRiskUsers[0].name}さん含め${atRiskUsers.length}人、最近来てないわよ。放っておくの？`;
+  const unreturnedReturn = pickUnreturned(returnList);
+  const unreturnedNew = pickUnreturned(newList);
+  if (unreturnedReturn && returnList.length >= 2) {
+    rinkaLine = `${unreturnedReturn.name}さん含め${returnList.length}人、戻ってきたわ。……会いに行きなさい。`;
+  } else if (unreturnedReturn) {
+    rinkaLine = `${unreturnedReturn.name}さんが戻ってきた。……放っておくの？`;
+  } else if (unreturnedNew && newList.length >= 3) {
+    rinkaLine = `新しい人が${newList.length}人。……ちゃんと覚えなさい。`;
+  } else if (unreturnedNew) {
+    rinkaLine = `${unreturnedNew.name}さんが初めて来たわ。……挨拶くらい、しなさい。`;
+  } else if (atRiskUsers.length >= 3) {
+    rinkaLine = `……${atRiskUsers[0].name}さん含め${atRiskUsers.length}人、最近来てない。会いに行かないの？`;
   } else if (atRiskUsers.length >= 1) {
-    rinkaLine = `${atRiskUsers[0].name}さん、最近来てないわ。……気づいてる？`;
-  } else if (returnList.length >= 1) {
-    rinkaLine = `${returnList[0].name}さんが戻ってきたわ。……ちゃんと覚えてなさいよ。`;
-  } else if (newList.length >= 3) {
-    rinkaLine = `新しい人が${newList.length}人。……悪くないわね。`;
-  } else if (newList.length >= 1) {
-    rinkaLine = `${newList[0].name}さんが初めて来たわ。……ちゃんと覚えなさい。`;
+    rinkaLine = `${atRiskUsers[0].name}さん、最近来てない。……気づいてる？`;
+  } else if (regList.length >= 5) {
+    rinkaLine = `常連が${regList.length}人。……ちゃんとお礼しなさいよ。`;
   } else {
     rinkaLine = `今週のスキ、ちゃんと確認しなさい。`;
   }
