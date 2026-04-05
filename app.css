@@ -188,13 +188,17 @@ a.person:hover {
   font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
-  display: flex;
-  align-items: center;
 }
 .person-name-text {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.person-name .badge {
+  display: inline-block;
+  margin-left: 0;
+  margin-top: 2px;
 }
 .person-stats {
   font-family: var(--font-mono);
