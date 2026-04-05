@@ -277,11 +277,11 @@ function renderToday() {
   if (yesterdayUsers.length > 0) {
     html += yesterdayUsers.map(u => {
       const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
-      return `<div class="person">
+      return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
         <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-        <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a></div>
+        <div class="person-name">${u.name}</div>
         <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers</div>
-      </div>`;
+      </a>`;
     }).join('');
   } else {
     html += `<div class="no-data">昨日のスキはありません</div>`;
@@ -455,14 +455,14 @@ function renderFans() {
   // Tabs (5 tabs including at-risk)
   const atRiskListHTML = atRiskUsers.length > 0 ? atRiskUsers.slice(0, 15).map(u => {
     const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
-    return `<div class="person">
+    return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
       <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
       <div class="person-name">
-        <a href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a>
+        ${u.name}
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">最終スキ: ${u.lastSeen}</div>
       </div>
       <div class="person-stats">${u.followerCount.toLocaleString()} followers</div>
-    </div>`;
+    </a>`;
   }).join('') : '<div class="no-data">離脱危機なし</div>';
 
   // Store lists for "load more"
@@ -497,11 +497,11 @@ function personCardHTML(u) {
   const statusHTML = returnStatus.liked
     ? '<div style="color:var(--accent-green);font-size:11px">✅ スキ返し済</div>'
     : '<div style="color:var(--accent-amber);font-size:11px">❌ 未スキ返し</div>';
-  return `<div class="person">
+  return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener" onclick="setPendingVisit('${u.urlname}','${u.name}')">
     <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-    <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener" onclick="setPendingVisit('${u.urlname}','${u.name}')">${u.name}</a></div>
+    <div class="person-name">${u.name}</div>
     <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()} followers<br>${statusHTML}</div>
-  </div>`;
+  </a>`;
 }
 
 let _peopleLists = {};
@@ -642,13 +642,13 @@ function rankCard(u, i, ranked, userCategory) {
   const badge = cat === 'regular' ? '<span class="badge badge-regular">常連</span>'
     : cat === 'new' ? '<span class="badge badge-new">New</span>' : '';
   const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
-  return `<div class="person">
+  return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
     <div class="person-rank">${rank}</div>
     <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-    <div class="person-name"><a href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a>${badge}</div>
+    <div class="person-name">${u.name}${badge}</div>
     <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()}<br>followers</div>
     <div class="person-score">${Math.round(u.score * 2)}<span>pt</span></div>
-  </div>`;
+  </a>`;
 }
 
 // ===== Screenshot =====

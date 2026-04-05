@@ -154,6 +154,12 @@ a:hover { text-decoration: underline; }
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.person:hover {
+  background: var(--bg-card);
 }
 .person:last-child { border-bottom: none; }
 .person-rank {
@@ -177,15 +183,12 @@ a:hover { text-decoration: underline; }
 .person-name {
   flex: 1;
   min-width: 0;
-}
-.person-name a {
   font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  display: block;
 }
 .person-stats {
   font-family: var(--font-mono);
@@ -373,7 +376,7 @@ a:hover { text-decoration: underline; }
   .screenshot-grid { grid-template-columns: 1fr; }
   .section { padding: 16px; }
   .ranking-grid { grid-template-columns: 1fr; }
-  .person-name a { font-size: 12px; }
+  .person-name { font-size: 12px; }
   .person-stats { font-size: 10px; }
   .person-score { font-size: 16px; }
   .navi-img { width: 36px; height: 36px; }
