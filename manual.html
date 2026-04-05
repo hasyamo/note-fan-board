@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a14">
+<title>使い方 - 観測は続く。</title>
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-main: #0a0a14;
+  --bg-card: #14141f;
+  --text-primary: #e8e8f0;
+  --text-secondary: #a0a0b8;
+  --text-muted: #666680;
+  --accent-cyan: #00d4ff;
+  --accent-pink: #fd79a8;
+  --accent-green: #00e676;
+  --accent-amber: #ffc107;
+  --border: #1e1e2e;
+  --font-sans: 'Noto Sans JP', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.8;
+  padding: 24px 16px 48px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  text-align: center;
+}
+h1 .accent { color: var(--accent-cyan); }
+h2 {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.section {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+ul {
+  list-style: none;
+  margin-bottom: 12px;
+}
+ul li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  padding-left: 1.2em;
+  position: relative;
+}
+ul li::before {
+  content: "─";
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+}
+.label {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 8px;
+  margin-right: 4px;
+}
+.label-new { background: var(--accent-cyan); color: #1a1a2e; }
+.label-return { background: var(--accent-green); color: #1a1a2e; }
+.label-regular { background: #d4af37; color: #1a1a2e; }
+.label-occasional { background: var(--text-muted); color: #1a1a2e; }
+.label-atrisk { background: var(--accent-amber); color: #1a1a2e; }
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+.score-table th, .score-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.score-table th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.score-table td:last-child {
+  font-family: var(--font-mono);
+  color: var(--accent-pink);
+  text-align: right;
+}
+.back {
+  display: block;
+  text-align: center;
+  margin-top: 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent-cyan);
+  text-decoration: none;
+}
+.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>使い方<span class="accent">。</span></h1>
+
+<div class="section">
+  <h2>Data Update</h2>
+  <p>データは1日6回（4時間ごと）自動で更新されます。ヘッダーの updated に最終更新日時が表示されます。</p>
+  <p>日付の切り替わりは朝5:00（JST）です。深夜0:00〜4:59のスキは前日分としてカウントされます。</p>
+</div>
+
+<div class="section">
+  <h2>Today</h2>
+  <p>昨日スキしてくれた人の一覧と、フォロワー数の推移を確認できます。</p>
+  <ul>
+    <li>フォロワー数の横に前回からの増減が表示されます</li>
+    <li>グラフの折れ線がフォロワー推移、棒グラフがもらったスキ数です</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Fans</h2>
+  <p>今週スキしてくれた人を、過去の行動パターンから自動で分類します。</p>
+  <ul>
+    <li><span class="label label-new">新規</span>過去にスキした記録がない人</li>
+    <li><span class="label label-return">復帰</span>以前スキしてくれていたが、最近4週はスキがなく、今週戻ってきた人</li>
+    <li><span class="label label-regular">常連</span>直近4週のうち3週以上スキしてくれている人</li>
+    <li><span class="label label-occasional">たまに</span>上記のどれにも当てはまらない人</li>
+    <li><span class="label label-atrisk">離脱危機</span>今週・直近4週ともスキなし。ただし、それ以前は頻繁に来ていた人</li>
+  </ul>
+  <p>スキ返し状態は、あなたがその人の記事にスキしたかどうかを表示します。</p>
+</div>
+
+<div class="section">
+  <h2>Ranking</h2>
+  <p>期間内のスキをポイント化してランキング表示します。記事の公開から早くスキしてくれた人ほど高ポイントになります。</p>
+  <table class="score-table">
+    <tr><th>スキのタイミング</th><th>倍率</th></tr>
+    <tr><td>公開から1時間以内</td><td>&times;3</td></tr>
+    <tr><td>6時間以内</td><td>&times;2</td></tr>
+    <tr><td>24時間以内</td><td>&times;1.5</td></tr>
+    <tr><td>それ以降</td><td>&times;1</td></tr>
+  </table>
+  <p>今週・先週・今月・先月の4期間を切り替えて確認できます。</p>
+</div>
+
+<a class="back" href="./">← 戻る</a>
+
+</body>
+</html>
