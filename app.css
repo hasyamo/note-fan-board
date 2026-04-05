@@ -148,7 +148,7 @@ a:hover { text-decoration: underline; }
 }
 
 /* ===== Person Card ===== */
-.person {
+a.person {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -158,8 +158,10 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
   color: inherit;
 }
-.person:hover {
+a.person:visited { color: inherit; }
+a.person:hover {
   background: var(--bg-card);
+  text-decoration: none;
 }
 .person:last-child { border-bottom: none; }
 .person-rank {
