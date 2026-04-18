@@ -200,6 +200,12 @@ function switchTab(tabName) {
   const tabEl = document.getElementById(tabId);
   if (tabEl) tabEl.classList.add('active');
   history.replaceState(null, '', location.pathname + location.search + '#' + tabName);
+  // 既にヘッダー内にいる場合はスクロールしない
+  const header = document.querySelector('.header');
+  const headerH = header ? header.offsetHeight : 0;
+  if (window.scrollY > headerH) {
+    window.scrollTo({ top: headerH, behavior: 'instant' });
+  }
 
   if (tabName === 'today') renderToday();
   if (tabName === 'fans') renderFans();
@@ -1274,6 +1280,48 @@ async function init() {
   if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+
+  // Check version update
+  checkVersionUpdate();
+}
+
+const APP_VERSION = '0.5.2';
+const VERSION_KEY = 'fanboard_version';
+
+async function checkVersionUpdate() {
+  const lastSeen = localStorage.getItem(VERSION_KEY);
+  if (lastSeen === APP_VERSION) return;
+
+  // 初回はメッセージを出さず、記録だけ
+  if (!lastSeen) {
+    localStorage.setItem(VERSION_KEY, APP_VERSION);
+    return;
+  }
+
+  // updates.jsonから現バージョンのメッセージを取得
+  let items = null;
+  try {
+    const res = await fetch('./data/updates.json?t=' + Date.now());
+    if (res.ok) {
+      const data = await res.json();
+      items = data[APP_VERSION];
+    }
+  } catch (e) {}
+
+  if (!items || items.length === 0) {
+    localStorage.setItem(VERSION_KEY, APP_VERSION);
+    return;
+  }
+
+  document.getElementById('updateVersion').textContent = 'v' + APP_VERSION;
+  const body = document.getElementById('updateBody');
+  body.innerHTML = items.map(t => `<li>${t}</li>`).join('');
+  const modal = document.getElementById('updateModal');
+  modal.style.display = 'flex';
+  document.getElementById('updateCloseBtn').addEventListener('click', () => {
+    localStorage.setItem(VERSION_KEY, APP_VERSION);
+    modal.style.display = 'none';
+  }, { once: true });
 }
 
 init();

@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="images/icon-192.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=0.5.1">
+<link rel="stylesheet" href="app.css?v=0.5.2">
 </head>
 <body>
 
@@ -76,7 +76,7 @@
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-copy">&copy; おはようカノジョ / hasyamo</div>
-    <div class="footer-version">v0.5.1</div>
+    <div class="footer-version">v0.5.2</div>
   </footer>
 </div>
 
@@ -88,6 +88,16 @@
   </div>
 </div>
 
-<script src="app.js?v=0.5.1"></script>
+<!-- Version Update Modal -->
+<div id="updateModal" class="modal-overlay" style="display:none">
+  <div class="modal-content update-modal-content">
+    <div class="update-modal-title">アップデート</div>
+    <div id="updateVersion" class="update-modal-version"></div>
+    <ul id="updateBody" class="update-modal-body"></ul>
+    <button id="updateCloseBtn" class="update-modal-btn">OK</button>
+  </div>
+</div>
+
+<script src="app.js?v=0.5.2"></script>
 </body>
 </html>
