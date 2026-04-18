@@ -470,7 +470,7 @@ a.person:hover {
   margin-left: 2px;
   font-weight: 400;
 }
-.magazine-user-name {
+.magazine-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
@@ -478,7 +478,7 @@ a.person:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.magazine-name {
+.magazine-user-name {
   font-size: 12px;
   color: var(--text-secondary);
   margin-top: 2px;
@@ -524,6 +524,103 @@ a.person:hover {
 }
 .magazine-action-btn:hover {
   opacity: 0.8;
+}
+
+/* 記事別ビュー（一覧形式） */
+.article-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.article-row {
+  background: var(--section-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.article-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.article-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+}
+.article-row-title:hover {
+  text-decoration: underline;
+}
+.article-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.article-row-count {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-amber);
+}
+.article-row-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.article-mag-list {
+  display: flex;
+  flex-direction: column;
+}
+.article-mag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid var(--border);
+}
+.article-mag-row:last-child {
+  border-bottom: none;
+}
+.article-mag-row:hover {
+  background: var(--bg-card);
+}
+.article-mag-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-card);
+}
+.article-mag-info {
+  flex: 1;
+  min-width: 0;
+}
+.article-mag-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.article-mag-user {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 @media (min-width: 640px) {
   .magazine-list { grid-template-columns: repeat(2, 1fr); }

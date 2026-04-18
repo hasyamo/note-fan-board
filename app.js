@@ -852,6 +852,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ===== Magazines Tab =====
 let magazinePeriod = 'week';
+let magazineView = 'magazine'; // 'magazine' or 'article'
 
 async function loadMagazines() {
   if (magazinesLoaded) return;
@@ -888,103 +889,170 @@ async function renderMagazines() {
     await loadMagazines();
   }
 
-  const range = getPeriodRange(magazinePeriod);
+  const range = magazinePeriod === 'all' ? null : getPeriodRange(magazinePeriod);
 
-  // addedイベントのみ、マガジン詳細が取得できたもの + 期間内
-  const events = magazineEvents
+  // 全addedイベント（マガジン詳細が取得できたもの）
+  const allEvents = magazineEvents
     .filter(e => e.event_type === 'added' && magazineDetails[e.magazine_key])
-    .filter(e => {
-      const d = e.detected_at.slice(0, 10);
-      return d >= range.start && d <= range.end;
-    })
     .sort((a, b) => b.detected_at.localeCompare(a.detected_at));
 
-  // 期間セレクタHTML
-  const periodToggleHtml = `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+  const events = range
+    ? allEvents.filter(e => {
+        const d = e.detected_at.slice(0, 10);
+        return d >= range.start && d <= range.end;
+      })
+    : allEvents;
+
+  // ビュートグル + 期間セレクタHTML
+  const togglesHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;flex-wrap:wrap">
+      <div class="toggle-group" id="magazineViewToggle">
+        <div class="toggle-btn${magazineView==='magazine'?' active':''}" data-view="magazine">マガジン別</div>
+        <div class="toggle-btn${magazineView==='article'?' active':''}" data-view="article">記事別</div>
+      </div>
       <div class="toggle-group" id="magazinePeriodToggle">
         <div class="toggle-btn${magazinePeriod==='week'?' active':''}" data-period="week">今週</div>
         <div class="toggle-btn${magazinePeriod==='lastweek'?' active':''}" data-period="lastweek">先週</div>
         <div class="toggle-btn${magazinePeriod==='month'?' active':''}" data-period="month">今月</div>
         <div class="toggle-btn${magazinePeriod==='lastmonth'?' active':''}" data-period="lastmonth">先月</div>
+        <div class="toggle-btn${magazinePeriod==='all'?' active':''}" data-period="all">全期間</div>
       </div>
     </div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;text-align:right">${getDayLabel(range.start)}〜${getDayLabel(range.end)}</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;text-align:right">${range ? getDayLabel(range.start) + '〜' + getDayLabel(range.end) : '全期間'}</div>
   `;
 
   if (events.length === 0) {
     const line = pickLine('hiyori', 'no_event');
-    el.innerHTML = naviHTML('hiyori', line) + periodToggleHtml + '<div class="no-data">この期間のマガジン追加はありません。</div>';
+    el.innerHTML = naviHTML('hiyori', line) + togglesHtml + '<div class="no-data">この期間のマガジン追加はありません。</div>';
     attachMagazinePeriodListeners();
     return;
   }
 
   // マガジンごとにグループ化
-  const groups = {};
+  const magGroups = {};
   for (const e of events) {
-    if (!groups[e.magazine_key]) {
-      groups[e.magazine_key] = {
+    if (!magGroups[e.magazine_key]) {
+      magGroups[e.magazine_key] = {
         magazine_key: e.magazine_key,
         events: [],
         latest_at: e.detected_at,
       };
     }
-    groups[e.magazine_key].events.push(e);
-    if (e.detected_at > groups[e.magazine_key].latest_at) {
-      groups[e.magazine_key].latest_at = e.detected_at;
+    magGroups[e.magazine_key].events.push(e);
+    if (e.detected_at > magGroups[e.magazine_key].latest_at) {
+      magGroups[e.magazine_key].latest_at = e.detected_at;
     }
   }
-  const groupList = Object.values(groups).sort((a, b) => b.latest_at.localeCompare(a.latest_at));
+  const magGroupList = Object.values(magGroups).sort((a, b) => b.latest_at.localeCompare(a.latest_at));
 
-  const items = groupList.map(g => {
-    const mag = magazineDetails[g.magazine_key];
-    const user = mag.user || {};
-    const date = g.latest_at.slice(0, 10) + ' ' + g.latest_at.slice(11, 16);
-    const cover = mag.cover_landscape || mag.cover || '';
-    const userIcon = user.profile_image_path || '';
-    const userName = user.nickname || user.urlname || '';
-    const userUrl = user.urlname ? `https://note.com/${user.urlname}` : '#';
-    const magUrl = mag.magazine_url || '#';
-    const count = g.events.length;
+  // 記事ごとにグループ化
+  const artGroups = {};
+  for (const e of events) {
+    if (!artGroups[e.note_key]) {
+      artGroups[e.note_key] = {
+        note_key: e.note_key,
+        events: [],
+        latest_at: e.detected_at,
+      };
+    }
+    artGroups[e.note_key].events.push(e);
+    if (e.detected_at > artGroups[e.note_key].latest_at) {
+      artGroups[e.note_key].latest_at = e.detected_at;
+    }
+  }
+  const artGroupList = Object.values(artGroups).sort((a, b) => b.latest_at.localeCompare(a.latest_at));
 
-    // 追加された記事タイトル一覧
-    const titles = g.events.map(e => {
-      const art = articlesData.find(a => a.key === e.note_key);
-      return art ? art.title : e.note_key;
-    });
-    const titlesHtml = titles.map(t => `<div class="magazine-article">「${t}」</div>`).join('');
+  let items;
+  if (magazineView === 'magazine') {
+    items = magGroupList.map(g => {
+      const mag = magazineDetails[g.magazine_key];
+      const user = mag.user || {};
+      const date = g.latest_at.slice(0, 10) + ' ' + g.latest_at.slice(11, 16);
+      const cover = mag.cover_landscape || mag.cover || '';
+      const userIcon = user.profile_image_path || '';
+      const userName = user.nickname || user.urlname || '';
+      const userUrl = user.urlname ? `https://note.com/${user.urlname}` : '#';
+      const magUrl = mag.magazine_url || '#';
+      const count = g.events.length;
 
-    return `
-      <div class="magazine-card">
-        ${cover ? `<a href="${magUrl}" target="_blank" rel="noopener"><img class="magazine-cover" src="${cover}" alt=""></a>` : ''}
-        <div class="magazine-body">
-          <div class="magazine-meta">
-            <img class="magazine-user-icon" src="${userIcon}" alt="">
-            <div class="magazine-user-info">
-              <div class="magazine-user-name">${userName}</div>
-              <div class="magazine-name">${mag.name || ''}</div>
+      const titles = g.events.map(e => {
+        const art = articlesData.find(a => a.key === e.note_key);
+        return art ? art.title : e.note_key;
+      });
+      const titlesHtml = titles.map(t => `<div class="magazine-article">「${t}」</div>`).join('');
+
+      return `
+        <div class="magazine-card">
+          ${cover ? `<a href="${magUrl}" target="_blank" rel="noopener"><img class="magazine-cover" src="${cover}" alt=""></a>` : ''}
+          <div class="magazine-body">
+            <div class="magazine-meta">
+              <img class="magazine-user-icon" src="${userIcon}" alt="">
+              <div class="magazine-user-info">
+                <div class="magazine-name">${mag.name || ''}</div>
+                <div class="magazine-user-name">${userName}</div>
+              </div>
             </div>
-          </div>
-          ${titlesHtml}
-          <div class="magazine-footer">
-            <div class="magazine-footer-row">
-              <div class="magazine-date">${date}</div>
-              <div class="magazine-count">${count}<span class="magazine-count-unit">本</span></div>
-            </div>
-            <div class="magazine-actions">
-              <a class="magazine-action-btn" href="${magUrl}" target="_blank" rel="noopener">マガジンへ</a>
-              <a class="magazine-action-btn" href="${userUrl}" target="_blank" rel="noopener">クリエータページへ</a>
+            ${titlesHtml}
+            <div class="magazine-footer">
+              <div class="magazine-footer-row">
+                <div class="magazine-date">${date}</div>
+                <div class="magazine-count">${count}<span class="magazine-count-unit">本</span></div>
+              </div>
+              <div class="magazine-actions">
+                <a class="magazine-action-btn" href="${magUrl}" target="_blank" rel="noopener">マガジンへ</a>
+                <a class="magazine-action-btn" href="${userUrl}" target="_blank" rel="noopener">クリエータページへ</a>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  } else {
+    // 記事別ビュー（一覧形式）
+    items = artGroupList.map(g => {
+      const art = articlesData.find(a => a.key === g.note_key);
+      const artTitle = art ? art.title : g.note_key;
+      const artUrl = creatorUrlname ? `https://note.com/${creatorUrlname}/n/${g.note_key}` : '#';
+      const date = g.latest_at.slice(0, 10) + ' ' + g.latest_at.slice(11, 16);
+      const count = g.events.length;
 
-  // 日和のセリフ決定
+      const magItems = g.events.map(e => {
+        const mag = magazineDetails[e.magazine_key];
+        if (!mag) return '';
+        const user = mag.user || {};
+        const userIcon = user.profile_image_path || '';
+        const userName = user.nickname || user.urlname || '';
+        const magUrl = mag.magazine_url || '#';
+        return `
+          <a class="article-mag-row" href="${magUrl}" target="_blank" rel="noopener">
+            <img class="article-mag-icon" src="${userIcon}" alt="">
+            <div class="article-mag-info">
+              <div class="article-mag-name">${mag.name || ''}</div>
+              <div class="article-mag-user">${userName}</div>
+            </div>
+          </a>
+        `;
+      }).join('');
+
+      return `
+        <div class="article-row">
+          <div class="article-row-header">
+            <a class="article-row-title" href="${artUrl}" target="_blank" rel="noopener">${artTitle}</a>
+            <div class="article-row-meta">
+              <span class="article-row-count">${count}マガジン</span>
+              <span class="article-row-date">${date}</span>
+            </div>
+          </div>
+          <div class="article-mag-list">${magItems}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 日和のセリフ決定（マガジン別時のデータ）
   const totalCount = events.length;
   const uniqueUsers = {};
-  for (const g of groupList) {
+  for (const g of magGroupList) {
     const user = magazineDetails[g.magazine_key].user || {};
     const key = user.urlname || user.nickname || g.magazine_key;
     if (!uniqueUsers[key]) uniqueUsers[key] = { name: user.nickname || user.urlname || '', count: 0 };
@@ -1003,7 +1071,8 @@ async function renderMagazines() {
     hiyoriLine = pickLine('hiyori', 'single_event', { count: totalCount });
   }
 
-  el.innerHTML = naviHTML('hiyori', hiyoriLine) + periodToggleHtml + `<div class="magazine-list">${items}</div>`;
+  const listClass = magazineView === 'magazine' ? 'magazine-list' : 'article-list';
+  el.innerHTML = naviHTML('hiyori', hiyoriLine) + togglesHtml + `<div class="${listClass}">${items}</div>`;
   attachMagazinePeriodListeners();
 }
 
@@ -1011,6 +1080,12 @@ function attachMagazinePeriodListeners() {
   document.querySelectorAll('#magazinePeriodToggle .toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       magazinePeriod = btn.dataset.period;
+      renderMagazines();
+    });
+  });
+  document.querySelectorAll('#magazineViewToggle .toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      magazineView = btn.dataset.view;
       renderMagazines();
     });
   });
