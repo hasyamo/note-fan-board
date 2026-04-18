@@ -398,6 +398,25 @@ a.person:hover {
   opacity: 0.5;
 }
 
+/* ===== Today: Suki Total ===== */
+.suki-total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 8px 0 16px;
+}
+.suki-total-count {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-amber);
+  line-height: 1;
+}
+.suki-total-unit {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
 /* ===== Magazines ===== */
 .magazines-header { margin-bottom: 16px; }
 .magazines-tagline {

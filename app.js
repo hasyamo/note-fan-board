@@ -295,8 +295,10 @@ function renderToday() {
   }
 
   // Yesterday's suki
+  const totalSuki = yesterdayLikes.length;
   html += `<div class="section">
-    <div class="section-title">昨日のスキ速報 <span style="font-weight:400;color:var(--text-muted)">${getDayLabel(yesterday)}</span></div>`;
+    <div class="section-title">昨日のスキ速報 <span style="font-weight:400;color:var(--text-muted)">${getDayLabel(yesterday)}</span></div>
+    <div class="suki-total"><span class="suki-total-count">${totalSuki}</span><span class="suki-total-unit">スキ</span></div>`;
 
   if (yesterdayUsers.length > 0) {
     html += yesterdayUsers.map(u => {
