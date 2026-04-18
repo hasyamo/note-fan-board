@@ -978,7 +978,7 @@ async function renderMagazines() {
       const titles = g.events.map(e => {
         const art = articlesData.find(a => a.key === e.note_key);
         return art ? art.title : e.note_key;
-      });
+      }).slice(0, 3);
       const titlesHtml = titles.map(t => `<div class="magazine-article">「${t}」</div>`).join('');
 
       return `
