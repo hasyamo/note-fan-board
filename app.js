@@ -4,8 +4,31 @@
 let articlesData = [];
 let likesData = [];
 let followersData = [];
+let magazineEvents = [];
+let magazineDetails = {};
+let magazinesLoaded = false;
 let lastUpdated = '--';
 let creatorUrlname = '';
+let linesData = {};
+
+async function loadLines() {
+  if (Object.keys(linesData).length > 0) return;
+  try {
+    const res = await fetch('./data/lines.json?t=' + Date.now());
+    if (res.ok) linesData = await res.json();
+  } catch(e) { console.error('lines.json load error:', e); }
+}
+
+function pickLine(character, patternKey, vars) {
+  const char = linesData[character] || {};
+  let template = char[patternKey];
+  if (!template) return '';
+  // 配列（複数バリエーション）の場合はランダム選出
+  if (Array.isArray(template)) {
+    template = template[Math.floor(Math.random() * template.length)];
+  }
+  return template.replace(/\$\{(\w+)\}/g, (_, key) => (vars && vars[key] !== undefined ? vars[key] : ''));
+}
 
 // ===== Date Utils =====
 const DAYS_JA = ['日','月','火','水','木','金','土'];
@@ -52,8 +75,8 @@ function getRankingDate(likedAt) {
 }
 
 // ===== Character =====
-const CHAR_FILES = { you: 'tue', rinka: 'thu', runa: 'fri' };
-const CHAR_NAMES = { you: '陽（朝の報告）', rinka: '凛華（関係維持 / 辛口）', runa: 'るな（感謝 / 盛り上げ）' };
+const CHAR_FILES = { you: 'tue', rinka: 'thu', runa: 'fri', hiyori: 'sun' };
+const CHAR_NAMES = { you: '陽（朝の報告）', rinka: '凛華（関係維持 / 辛口）', runa: 'るな（感謝 / 盛り上げ）', hiyori: '日和（マガジン追加）' };
 
 function charImgSrc(charKey) {
   // Use ohayo-kanojo character images hosted on v1
@@ -181,6 +204,7 @@ function switchTab(tabName) {
   if (tabName === 'today') renderToday();
   if (tabName === 'fans') renderFans();
   if (tabName === 'ranking') renderRanking();
+  if (tabName === 'magazines') renderMagazines();
 }
 
 document.querySelectorAll('.tab-bar-btn').forEach(btn => {
@@ -233,17 +257,17 @@ function renderToday() {
   // Character line (priority: return > new > regular > count > 0)
   let youLine;
   if (returnUsers.length > 0) {
-    youLine = `久しぶりの人が戻ってきたよ！${returnUsers[0].name}さん、見に行こ！`;
+    youLine = pickLine('you', 'return_with_name', { name: returnUsers[0].name });
   } else if (newUsers.length > 0) {
-    youLine = `昨日、初めての人が来てくれたよ！${newUsers[0].name}さん、覚えておこ！`;
+    youLine = pickLine('you', 'new_with_name', { name: newUsers[0].name });
   } else if (regularUsers.length > 0) {
-    youLine = `昨日も${regularUsers[0].name}さん来てくれてたよ！いつもありがとだね！`;
+    youLine = pickLine('you', 'regular_with_name', { name: regularUsers[0].name });
   } else if (yesterdayUsers.length >= 5) {
-    youLine = `昨日${yesterdayUsers.length}人も来てくれたよ！にぎやかだったね！`;
+    youLine = pickLine('you', 'many_visitors', { count: yesterdayUsers.length });
   } else if (yesterdayUsers.length >= 1) {
-    youLine = `昨日${yesterdayUsers.length}人来てくれたよ！一人ひとり、ちゃんと見よ！`;
+    youLine = pickLine('you', 'some_visitors', { count: yesterdayUsers.length });
   } else {
-    youLine = `昨日はお休みだったみたい。でも大丈夫、今日の記事で変わるよ！`;
+    youLine = pickLine('you', 'no_visitors');
   }
 
   let html = naviHTML('you', youLine);
@@ -457,21 +481,21 @@ function renderFans() {
   const unreturnedReturn = pickUnreturned(returnList);
   const unreturnedNew = pickUnreturned(newList);
   if (unreturnedReturn && returnList.length >= 2) {
-    rinkaLine = `${unreturnedReturn.name}さん含め${returnList.length}人、戻ってきたわ。……会いに行きなさい。`;
+    rinkaLine = pickLine('rinka', 'return_multi', { name: unreturnedReturn.name, count: returnList.length });
   } else if (unreturnedReturn) {
-    rinkaLine = `${unreturnedReturn.name}さんが戻ってきた。……放っておくの？`;
+    rinkaLine = pickLine('rinka', 'return_single', { name: unreturnedReturn.name });
   } else if (unreturnedNew && newList.length >= 3) {
-    rinkaLine = `新しい人が${newList.length}人。……ちゃんと覚えなさい。`;
+    rinkaLine = pickLine('rinka', 'new_multi', { count: newList.length });
   } else if (unreturnedNew) {
-    rinkaLine = `${unreturnedNew.name}さんが初めて来たわ。……挨拶くらい、しなさい。`;
+    rinkaLine = pickLine('rinka', 'new_single', { name: unreturnedNew.name });
   } else if (atRiskUsers.length >= 3) {
-    rinkaLine = `……${atRiskUsers[0].name}さん含め${atRiskUsers.length}人、最近来てない。会いに行かないの？`;
+    rinkaLine = pickLine('rinka', 'at_risk_multi', { name: atRiskUsers[0].name, count: atRiskUsers.length });
   } else if (atRiskUsers.length >= 1) {
-    rinkaLine = `${atRiskUsers[0].name}さん、最近来てない。……気づいてる？`;
+    rinkaLine = pickLine('rinka', 'at_risk_single', { name: atRiskUsers[0].name });
   } else if (regList.length >= 5) {
-    rinkaLine = `常連が${regList.length}人。……ちゃんとお礼しなさいよ。`;
+    rinkaLine = pickLine('rinka', 'regular_many', { count: regList.length });
   } else {
-    rinkaLine = `今週のスキ、ちゃんと確認しなさい。`;
+    rinkaLine = pickLine('rinka', 'fallback');
   }
 
   let html = naviHTML('rinka', rinkaLine);
@@ -608,16 +632,16 @@ function renderRanking() {
     const top1Score = Math.round(ranked[0].score * 2);
     const tiedCount = ranked.filter(u => Math.round(u.score * 2) === top1Score).length;
     if (tiedCount >= 2) {
-      runaLine = `${tiedCount}人が同率1位！みんなありがとー！`;
+      runaLine = pickLine('runa', 'tied_top', { count: tiedCount });
     } else if (newCount >= 3) {
-      runaLine = `新しい人が${newCount}人もランクインしてるよ！広がってるね！`;
+      runaLine = pickLine('runa', 'many_new', { count: newCount });
     } else if (regCount >= 10) {
-      runaLine = `常連さんが${regCount}人！安定感あるね！`;
+      runaLine = pickLine('runa', 'many_regular', { count: regCount });
     } else {
-      runaLine = `${ranked[0].name}さんがトップだよ！いつもありがとね！`;
+      runaLine = pickLine('runa', 'top_name', { name: ranked[0].name });
     }
   } else {
-    runaLine = `まだスキがないみたい。これからだよ！`;
+    runaLine = pickLine('runa', 'no_data');
   }
 
   let html = naviHTML('runa', runaLine);
@@ -636,7 +660,7 @@ function renderRanking() {
         </div>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">${getDayLabel(range.start)}〜${getDayLabel(range.end)}</div>`;
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">${getDayLabel(range.start)}〜${getDayLabel(range.end)}</div>`;
 
   if (ranked.length === 0) {
     html += `<div class="no-data">この期間のスキデータなし</div>`;
@@ -826,6 +850,172 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') setTimeout(checkPendingVisit, 800);
 });
 
+// ===== Magazines Tab =====
+let magazinePeriod = 'week';
+
+async function loadMagazines() {
+  if (magazinesLoaded) return;
+  const base = `./data/${creatorUrlname}/`;
+  const cacheBust = '?t=' + Date.now();
+
+  try {
+    const evRes = await fetch(base + 'magazine_events.csv' + cacheBust);
+    if (evRes.ok) {
+      magazineEvents = parseCSV(await evRes.text());
+    }
+  } catch(e) { console.error('magazine_events load error:', e); }
+
+  // 外部マガジンのkeyを抽出して詳細JSONを読み込む
+  const addedEvents = magazineEvents.filter(e => e.event_type === 'added');
+  const magKeys = [...new Set(addedEvents.map(e => e.magazine_key))];
+  await Promise.all(magKeys.map(async mk => {
+    if (magazineDetails[mk]) return;
+    try {
+      const res = await fetch(base + 'magazines/' + mk + '.json' + cacheBust);
+      if (res.ok) {
+        magazineDetails[mk] = await res.json();
+      }
+    } catch(e) {}
+  }));
+
+  magazinesLoaded = true;
+}
+
+async function renderMagazines() {
+  const el = document.getElementById('magazinesContent');
+  if (!magazinesLoaded) {
+    el.innerHTML = '<div class="loading">読み込み中...</div>';
+    await loadMagazines();
+  }
+
+  const range = getPeriodRange(magazinePeriod);
+
+  // addedイベントのみ、マガジン詳細が取得できたもの + 期間内
+  const events = magazineEvents
+    .filter(e => e.event_type === 'added' && magazineDetails[e.magazine_key])
+    .filter(e => {
+      const d = e.detected_at.slice(0, 10);
+      return d >= range.start && d <= range.end;
+    })
+    .sort((a, b) => b.detected_at.localeCompare(a.detected_at));
+
+  // 期間セレクタHTML
+  const periodToggleHtml = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+      <div class="toggle-group" id="magazinePeriodToggle">
+        <div class="toggle-btn${magazinePeriod==='week'?' active':''}" data-period="week">今週</div>
+        <div class="toggle-btn${magazinePeriod==='lastweek'?' active':''}" data-period="lastweek">先週</div>
+        <div class="toggle-btn${magazinePeriod==='month'?' active':''}" data-period="month">今月</div>
+        <div class="toggle-btn${magazinePeriod==='lastmonth'?' active':''}" data-period="lastmonth">先月</div>
+      </div>
+    </div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;text-align:right">${getDayLabel(range.start)}〜${getDayLabel(range.end)}</div>
+  `;
+
+  if (events.length === 0) {
+    const line = pickLine('hiyori', 'no_event');
+    el.innerHTML = naviHTML('hiyori', line) + periodToggleHtml + '<div class="no-data">この期間のマガジン追加はありません。</div>';
+    attachMagazinePeriodListeners();
+    return;
+  }
+
+  // マガジンごとにグループ化
+  const groups = {};
+  for (const e of events) {
+    if (!groups[e.magazine_key]) {
+      groups[e.magazine_key] = {
+        magazine_key: e.magazine_key,
+        events: [],
+        latest_at: e.detected_at,
+      };
+    }
+    groups[e.magazine_key].events.push(e);
+    if (e.detected_at > groups[e.magazine_key].latest_at) {
+      groups[e.magazine_key].latest_at = e.detected_at;
+    }
+  }
+  const groupList = Object.values(groups).sort((a, b) => b.latest_at.localeCompare(a.latest_at));
+
+  const items = groupList.map(g => {
+    const mag = magazineDetails[g.magazine_key];
+    const user = mag.user || {};
+    const date = g.latest_at.slice(0, 10) + ' ' + g.latest_at.slice(11, 16);
+    const cover = mag.cover_landscape || mag.cover || '';
+    const userIcon = user.profile_image_path || '';
+    const userName = user.nickname || user.urlname || '';
+    const userUrl = user.urlname ? `https://note.com/${user.urlname}` : '#';
+    const magUrl = mag.magazine_url || '#';
+    const count = g.events.length;
+
+    // 追加された記事タイトル一覧
+    const titles = g.events.map(e => {
+      const art = articlesData.find(a => a.key === e.note_key);
+      return art ? art.title : e.note_key;
+    });
+    const titlesHtml = titles.map(t => `<div class="magazine-article">「${t}」</div>`).join('');
+
+    return `
+      <div class="magazine-card">
+        ${cover ? `<a href="${magUrl}" target="_blank" rel="noopener"><img class="magazine-cover" src="${cover}" alt=""></a>` : ''}
+        <div class="magazine-body">
+          <div class="magazine-meta">
+            <img class="magazine-user-icon" src="${userIcon}" alt="">
+            <div class="magazine-user-info">
+              <div class="magazine-user-name">${userName}</div>
+              <div class="magazine-name">${mag.name || ''}</div>
+            </div>
+          </div>
+          ${titlesHtml}
+          <div class="magazine-footer">
+            <div class="magazine-footer-row">
+              <div class="magazine-date">${date}</div>
+              <div class="magazine-count">${count}<span class="magazine-count-unit">本</span></div>
+            </div>
+            <div class="magazine-actions">
+              <a class="magazine-action-btn" href="${magUrl}" target="_blank" rel="noopener">マガジンへ</a>
+              <a class="magazine-action-btn" href="${userUrl}" target="_blank" rel="noopener">クリエータページへ</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 日和のセリフ決定
+  const totalCount = events.length;
+  const uniqueUsers = {};
+  for (const g of groupList) {
+    const user = magazineDetails[g.magazine_key].user || {};
+    const key = user.urlname || user.nickname || g.magazine_key;
+    if (!uniqueUsers[key]) uniqueUsers[key] = { name: user.nickname || user.urlname || '', count: 0 };
+    uniqueUsers[key].count += g.events.length;
+  }
+  const topUser = Object.values(uniqueUsers).sort((a, b) => b.count - a.count)[0];
+
+  let hiyoriLine;
+  if (topUser && topUser.count >= 3) {
+    hiyoriLine = pickLine('hiyori', 'repeat_from_user', { name: topUser.name, count: topUser.count });
+  } else if (totalCount >= 5) {
+    hiyoriLine = pickLine('hiyori', 'many_event', { count: totalCount });
+  } else if (totalCount >= 2) {
+    hiyoriLine = pickLine('hiyori', 'multi_event', { count: totalCount });
+  } else {
+    hiyoriLine = pickLine('hiyori', 'single_event', { count: totalCount });
+  }
+
+  el.innerHTML = naviHTML('hiyori', hiyoriLine) + periodToggleHtml + `<div class="magazine-list">${items}</div>`;
+  attachMagazinePeriodListeners();
+}
+
+function attachMagazinePeriodListeners() {
+  document.querySelectorAll('#magazinePeriodToggle .toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      magazinePeriod = btn.dataset.period;
+      renderMagazines();
+    });
+  });
+}
+
 // ===== CSV Parser =====
 function parseCSV(text) {
   const lines = text.trim().split('\n');
@@ -852,6 +1042,8 @@ async function loadData(urlname) {
   creatorUrlname = urlname;
   const cacheBust = '?t=' + Date.now();
   const base = `./data/${urlname}/`;
+
+  await loadLines();
 
   try {
     // Articles
