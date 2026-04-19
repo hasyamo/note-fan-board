@@ -39,7 +39,7 @@ a:hover { text-decoration: underline; }
 .app { max-width: 640px; margin: 0 auto; padding: 0 16px; }
 
 /* ===== Header ===== */
-.header { padding: 24px 0 16px; text-align: center; position: relative; }
+.header { padding: calc(24px + env(safe-area-inset-top, 0px)) 0 16px; text-align: center; position: relative; }
 .header-title-row {
   display: flex;
   justify-content: center;
