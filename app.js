@@ -1287,7 +1287,7 @@ async function init() {
   checkVersionUpdate();
 }
 
-const APP_VERSION = '0.5.7';
+const APP_VERSION = '0.5.8';
 const VERSION_KEY = 'fanboard_version';
 
 async function checkVersionUpdate() {
