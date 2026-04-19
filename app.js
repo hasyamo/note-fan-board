@@ -193,18 +193,20 @@ async function loadAvatars() {
 }
 
 // ===== Tab Switching =====
-function switchTab(tabName) {
+function switchTab(tabName, opts) {
+  const adjustScroll = !opts || opts.adjustScroll !== false;
   document.querySelectorAll('.tab-bar-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
   document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
   const tabId = 'tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
   const tabEl = document.getElementById(tabId);
   if (tabEl) tabEl.classList.add('active');
   history.replaceState(null, '', location.pathname + location.search + '#' + tabName);
-  // 既にヘッダー内にいる場合はスクロールしない
-  const header = document.querySelector('.header');
-  const headerH = header ? header.offsetHeight : 0;
-  if (window.scrollY > headerH) {
-    window.scrollTo({ top: headerH, behavior: 'instant' });
+  if (adjustScroll) {
+    const header = document.querySelector('.header');
+    const headerH = header ? header.offsetHeight : 0;
+    if (window.scrollY > headerH) {
+      window.scrollTo({ top: headerH, behavior: 'instant' });
+    }
   }
 
   if (tabName === 'today') renderToday();
@@ -1271,7 +1273,7 @@ async function init() {
   // Render active tab
   const hash = location.hash.replace('#', '');
   if (hash && document.querySelector(`.tab-bar-btn[data-tab="${hash}"]`)) {
-    switchTab(hash);
+    switchTab(hash, { adjustScroll: false });
   } else {
     renderToday();
   }
@@ -1285,7 +1287,7 @@ async function init() {
   checkVersionUpdate();
 }
 
-const APP_VERSION = '0.5.5';
+const APP_VERSION = '0.5.6';
 const VERSION_KEY = 'fanboard_version';
 
 async function checkVersionUpdate() {
