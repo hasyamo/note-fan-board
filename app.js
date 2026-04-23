@@ -170,9 +170,23 @@ function getSukiMultiplier(likedAt, noteKey) {
 // 新仕様: タイミング係数 + コメント×3 + マガジン追加×2 + 継続性（複数記事スキ-1）×0.5
 // ユーザー照合は urlname ベース
 function buildRankingUsers(periodStart, periodEnd) {
+  // periodStart/periodEnd は 'YYYY-MM-DD' 形式。getRankingDate() も同形式を返す
   const inPeriod = (dateStr) => {
     const d = getRankingDate(dateStr);
     return d >= periodStart && d <= periodEnd;
+  };
+  // ISO datetime 文字列を 'YYYY-MM-DD' (JST) に変換してから比較
+  const toDateKey = (isoStr) => {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d)) return '';
+    // JSTでの日付キー
+    const jst = new Date(d.getTime() + 9 * 3600 * 1000);
+    return jst.toISOString().slice(0, 10);
+  };
+  const inPeriodISO = (isoStr) => {
+    const k = toDateKey(isoStr);
+    return k && k >= periodStart && k <= periodEnd;
   };
 
   const userMap = {};
@@ -208,8 +222,7 @@ function buildRankingUsers(periodStart, periodEnd) {
 
   // Comments (urlname基準。likesにいないコメンターもエントリ作成)
   commentsData.forEach(c => {
-    const d = c.commented_at ? new Date(c.commented_at) : null;
-    if (!d || d < periodStart || d > periodEnd) return;
+    if (!inPeriodISO(c.commented_at)) return;
     const u = getOrInit(c.user_urlname, c.user_name, c.user_urlname);
     u.commentCount++;
   });
@@ -217,8 +230,7 @@ function buildRankingUsers(periodStart, periodEnd) {
   // Magazine additions (magazine owner urlname基準)
   magazineEvents.forEach(e => {
     if (e.event_type !== 'added') return;
-    const d = e.detected_at ? new Date(e.detected_at) : null;
-    if (!d || d < periodStart || d > periodEnd) return;
+    if (!inPeriodISO(e.detected_at)) return;
     const mag = magazineDetails[e.magazine_key];
     if (!mag) return;
     const owner = mag.user?.urlname;
