@@ -323,6 +323,13 @@ a.person:hover {
 }
 .badge-regular { background: #d4af37; color: #1a1a2e; }
 .badge-new { background: var(--accent-cyan); color: #1a1a2e; }
+.depth-badge {
+  font-size: 11px;
+  margin-left: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  vertical-align: middle;
+}
 
 /* ===== Ranking ===== */
 .ranking-header { margin-bottom: 16px; }

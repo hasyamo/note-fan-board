@@ -4,6 +4,7 @@
 let articlesData = [];
 let likesData = [];
 let followersData = [];
+let commentsData = [];
 let magazineEvents = [];
 let magazineDetails = {};
 let magazinesLoaded = false;
@@ -163,6 +164,78 @@ function getSukiMultiplier(likedAt, noteKey) {
   if (diffHours <= 6) return 2;
   if (diffHours <= 24) return 1.5;
   return 1;
+}
+
+// ===== Ranking Score =====
+// 新仕様: タイミング係数 + コメント×3 + マガジン追加×2 + 継続性（複数記事スキ-1）×0.5
+// ユーザー照合は urlname ベース
+function buildRankingUsers(periodStart, periodEnd) {
+  const inPeriod = (dateStr) => {
+    const d = getRankingDate(dateStr);
+    return d >= periodStart && d <= periodEnd;
+  };
+
+  const userMap = {};
+  const getOrInit = (urlname, fallbackName, fallbackUid) => {
+    const key = urlname || fallbackUid;
+    if (!userMap[key]) {
+      userMap[key] = {
+        uid: fallbackUid || key,
+        urlname: urlname || '',
+        name: fallbackName || urlname || fallbackUid,
+        count: 0,
+        timing: 0,
+        commentCount: 0,
+        magazineAddCount: 0,
+        likedNotes: new Set(),
+        followerCount: 0,
+      };
+    }
+    return userMap[key];
+  };
+
+  // Likes
+  likesData.forEach(l => {
+    if (!inPeriod(l.liked_at)) return;
+    const u = getOrInit(l.like_user_urlname, l.like_username, l.like_user_id);
+    u.count++;
+    u.timing += getSukiMultiplier(l.liked_at, l.note_key);
+    u.likedNotes.add(l.note_key);
+    const fc = parseInt(l.follower_count) || 0;
+    if (fc > u.followerCount) u.followerCount = fc;
+    if (l.like_username && !u.name) u.name = l.like_username;
+  });
+
+  // Comments (urlname基準。likesにいないコメンターもエントリ作成)
+  commentsData.forEach(c => {
+    const d = c.commented_at ? new Date(c.commented_at) : null;
+    if (!d || d < periodStart || d > periodEnd) return;
+    const u = getOrInit(c.user_urlname, c.user_name, c.user_urlname);
+    u.commentCount++;
+  });
+
+  // Magazine additions (magazine owner urlname基準)
+  magazineEvents.forEach(e => {
+    if (e.event_type !== 'added') return;
+    const d = e.detected_at ? new Date(e.detected_at) : null;
+    if (!d || d < periodStart || d > periodEnd) return;
+    const mag = magazineDetails[e.magazine_key];
+    if (!mag) return;
+    const owner = mag.user?.urlname;
+    if (!owner) return;
+    const u = getOrInit(owner, mag.user?.nickname, owner);
+    u.magazineAddCount++;
+  });
+
+  // Score計算
+  Object.values(userMap).forEach(u => {
+    const continuity = Math.max(0, u.likedNotes.size - 1) * 0.5;
+    u.score = u.timing + u.commentCount * 3 + u.magazineAddCount * 2 + continuity;
+    u.likedNotesCount = u.likedNotes.size;
+    delete u.likedNotes;
+  });
+
+  return Object.values(userMap);
 }
 
 // ===== Profile Image =====
@@ -612,22 +685,8 @@ function renderRanking() {
   if (likesData.length === 0) { el.innerHTML = '<div class="no-data">データなし</div>'; return; }
 
   const range = getPeriodRange(rankPeriod);
-  const periodLikes = likesData.filter(l => {
-    const d = getRankingDate(l.liked_at);
-    return d >= range.start && d <= range.end;
-  });
-
-  const userMap = {};
-  periodLikes.forEach(l => {
-    const uid = l.like_user_id;
-    if (!userMap[uid]) {
-      userMap[uid] = { uid, name: l.like_username || l.like_user_urlname || uid, urlname: l.like_user_urlname || '', count: 0, score: 0, followerCount: parseInt(l.follower_count) || 0 };
-    }
-    userMap[uid].count++;
-    userMap[uid].score += getSukiMultiplier(l.liked_at, l.note_key);
-  });
-
-  const ranked = Object.values(userMap).sort((a, b) => b.score - a.score).slice(0, 20);
+  const users = buildRankingUsers(range.start, range.end).filter(u => u.count > 0);
+  const ranked = users.sort((a, b) => b.score - a.score).slice(0, 20);
 
   // Classify
   const userWeeks = buildUserWeeks();
@@ -639,8 +698,8 @@ function renderRanking() {
   const regCount = ranked.filter(u => userCategory[u.uid] === 'regular').length;
   let runaLine;
   if (ranked.length > 0) {
-    const top1Score = Math.round(ranked[0].score * 2);
-    const tiedCount = ranked.filter(u => Math.round(u.score * 2) === top1Score).length;
+    const top1Score = Math.round(ranked[0].score);
+    const tiedCount = ranked.filter(u => Math.round(u.score) === top1Score).length;
     if (tiedCount >= 2) {
       runaLine = pickLine('runa', 'tied_top', { count: tiedCount });
     } else if (newCount >= 3) {
@@ -659,7 +718,7 @@ function renderRanking() {
   // Period toggle
   html += `<div class="section">
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
-      <span>スキランキング</span>
+      <span>ファンランキング</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="toggle-btn" onclick="openScreenshot()" style="font-size:11px">スクショ用</button>
         <div class="toggle-group" id="rankPeriodToggle">
@@ -692,49 +751,52 @@ function renderRanking() {
   loadAvatars();
 }
 
+// 関係の深さ（💖1〜5）を TOP1 スコアとの相対比率で判定
+function getDepthLevel(score, top1Score) {
+  if (!top1Score || score <= 0) return 1;
+  const r = score / top1Score;
+  if (r >= 0.7) return 5;
+  if (r >= 0.4) return 4;
+  if (r >= 0.2) return 3;
+  if (r >= 0.1) return 2;
+  return 1;
+}
+
 function rankCard(u, i, ranked, userCategory) {
-  const rank = i === 0 ? 1 : (Math.round(u.score * 2) === Math.round(ranked[i - 1].score * 2) ? ranked[i - 1]._rank : i + 1);
+  const rank = i === 0 ? 1 : (Math.round(u.score) === Math.round(ranked[i - 1].score) ? ranked[i - 1]._rank : i + 1);
   u._rank = rank;
   const cat = userCategory[u.uid] || '';
   const avatarClass = 'person-avatar' + (cat === 'regular' ? ' regular' : '');
   const badge = cat === 'regular' ? '<span class="badge badge-regular">常連</span>'
     : cat === 'new' ? '<span class="badge badge-new">New</span>' : '';
+  const top1 = ranked[0] ? ranked[0].score : 0;
+  const depth = getDepthLevel(u.score, top1);
+  const depthBadge = `<span class="depth-badge">💖${depth}</span>`;
   const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
   return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
     <div class="person-rank">${rank}</div>
     <img class="${avatarClass}" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
-    <div class="person-name"><span class="person-name-text">${u.name}</span>${badge}</div>
+    <div class="person-name"><span class="person-name-text">${u.name}</span>${badge}${depthBadge}</div>
     <div class="person-stats">${u.count}スキ<br>${u.followerCount.toLocaleString()}<br>followers</div>
-    <div class="person-score">${Math.round(u.score * 2)}<span>pt</span></div>
+    <div class="person-score">${Math.round(u.score)}<span>pt</span></div>
   </a>`;
 }
 
 // ===== Screenshot =====
 function openScreenshot() {
-  // Reuse v1 screenshot logic (simplified)
   const range = getPeriodRange(rankPeriod);
-  const periodLikes = likesData.filter(l => {
-    const d = getRankingDate(l.liked_at);
-    return d >= range.start && d <= range.end;
-  });
-  const userMap = {};
-  periodLikes.forEach(l => {
-    const uid = l.like_user_id;
-    if (!userMap[uid]) {
-      userMap[uid] = { uid, name: l.like_username || l.like_user_urlname || uid, urlname: l.like_user_urlname || '', count: 0, score: 0, followerCount: parseInt(l.follower_count) || 0 };
-    }
-    userMap[uid].count++;
-    userMap[uid].score += getSukiMultiplier(l.liked_at, l.note_key);
-  });
-  const ranked = Object.values(userMap).sort((a, b) => b.score - a.score).slice(0, 10);
+  const users = buildRankingUsers(range.start, range.end).filter(u => u.count > 0);
+  const ranked = users.sort((a, b) => b.score - a.score).slice(0, 10);
 
   const periodLabels = { week: '今週', lastweek: '先週', month: '今月', lastmonth: '先月' };
   const left = ranked.slice(0, 5);
   const right = ranked.slice(5, 10);
 
+  const top1 = ranked[0] ? ranked[0].score : 0;
   const cardHTML = (u, i) => {
-    const rank = i === 0 ? 1 : (Math.round(u.score * 2) === Math.round(ranked[i - 1].score * 2) ? ranked[i - 1]._ssRank : i + 1);
+    const rank = i === 0 ? 1 : (Math.round(u.score) === Math.round(ranked[i - 1].score) ? ranked[i - 1]._ssRank : i + 1);
     u._ssRank = rank;
+    const depth = getDepthLevel(u.score, top1);
     const avatarStyle = rank === 1 ? 'border:3px solid #d4af37;box-shadow:0 2px 8px rgba(0,0,0,0.15);' : 'border:2px solid #6c5ce7;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-radius:12px;border:1px solid rgba(108,92,231,0.12);margin-bottom:6px">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${rank<=1?'#d4af37':rank<=2?'#c0c0c0':rank<=3?'#cd7f32':'#ccc'};min-width:28px;text-align:center">${rank}</div>
@@ -743,8 +805,8 @@ function openScreenshot() {
         <div style="font-size:13px;font-weight:700;color:#333">${u.name}さん</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:9px;color:#999">${u.count}スキ</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#fd79a8">${Math.round(u.score*2)}<span style="font-size:9px;color:#999">pt</span></div>
+        <div style="font-size:9px;color:#999">${u.count}スキ ／ <span style="color:#fd79a8">💖${depth}</span></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#fd79a8">${Math.round(u.score)}<span style="font-size:9px;color:#999">pt</span></div>
       </div>
     </div>`;
   };
@@ -752,7 +814,7 @@ function openScreenshot() {
   const html = `
     <div style="background:#fffbf2;color:#0a0a14;border-radius:20px;padding:28px 24px;font-family:'Noto Sans JP',sans-serif;max-width:860px">
       <div style="text-align:center;margin-bottom:20px">
-        <div style="font-size:22px;font-weight:900;color:#333"><span style="font-size:1.5em;font-weight:900;color:#6c5ce7">い</span>つもスキしてくれる人</div>
+        <div style="font-size:22px;font-weight:900;color:#333"><span style="font-size:1.5em;font-weight:900;color:#6c5ce7">い</span>つも来てくれる人</div>
         <div style="font-size:12px;color:#999;margin-top:4px">${periodLabels[rankPeriod]||''} ${getDayLabel(range.start)}〜${getDayLabel(range.end)}</div>
       </div>
       <div class="screenshot-grid">
@@ -769,6 +831,117 @@ function openScreenshot() {
 
 function closeScreenshot() {
   document.getElementById('sukiScreenshotModal').style.display = 'none';
+}
+
+function openMagazineScreenshot() {
+  const range = magazinePeriod === 'all' ? null : getPeriodRange(magazinePeriod);
+
+  const allEvents = magazineEvents
+    .filter(e => e.event_type === 'added' && magazineDetails[e.magazine_key])
+    .sort((a, b) => b.detected_at.localeCompare(a.detected_at));
+
+  const events = range
+    ? allEvents.filter(e => {
+        const d = e.detected_at.slice(0, 10);
+        return d >= range.start && d <= range.end;
+      })
+    : allEvents;
+
+  // マガジンごとにグループ化
+  const groups = {};
+  for (const e of events) {
+    if (!groups[e.magazine_key]) {
+      groups[e.magazine_key] = { magazine_key: e.magazine_key, events: [], latest_at: e.detected_at };
+    }
+    groups[e.magazine_key].events.push(e);
+    if (e.detected_at > groups[e.magazine_key].latest_at) {
+      groups[e.magazine_key].latest_at = e.detected_at;
+    }
+  }
+  // スクショ用は件数の多い順
+  const groupList = Object.values(groups).sort((a, b) => b.events.length - a.events.length || b.latest_at.localeCompare(a.latest_at));
+
+  // 日和のセリフ
+  const totalCount = events.length;
+  const uniqueUsers = {};
+  for (const g of groupList) {
+    const user = magazineDetails[g.magazine_key].user || {};
+    const key = user.urlname || user.nickname || g.magazine_key;
+    if (!uniqueUsers[key]) uniqueUsers[key] = { name: user.nickname || user.urlname || '', count: 0 };
+    uniqueUsers[key].count += g.events.length;
+  }
+  const topUser = Object.values(uniqueUsers).sort((a, b) => b.count - a.count)[0];
+  let hiyoriLine;
+  if (totalCount === 0) {
+    hiyoriLine = pickLine('hiyori', 'no_event');
+  } else if (topUser && topUser.count >= 3) {
+    hiyoriLine = pickLine('hiyori', 'repeat_from_user', { name: topUser.name, count: topUser.count });
+  } else if (totalCount >= 5) {
+    hiyoriLine = pickLine('hiyori', 'many_event', { count: totalCount });
+  } else if (totalCount >= 2) {
+    hiyoriLine = pickLine('hiyori', 'multi_event', { count: totalCount });
+  } else {
+    hiyoriLine = pickLine('hiyori', 'single_event', { count: totalCount });
+  }
+
+  const periodLabels = { week: '今週', lastweek: '先週', month: '今月', lastmonth: '先月', all: '全期間' };
+  const periodLabel = periodLabels[magazinePeriod] || '';
+  const dateRange = range ? `${getDayLabel(range.start)}〜${getDayLabel(range.end)}` : '全期間';
+
+  const cardHTML = (g) => {
+    const mag = magazineDetails[g.magazine_key];
+    const user = mag.user || {};
+    const cover = mag.cover_landscape || mag.cover || '';
+    const userName = user.nickname || user.urlname || '';
+    const count = g.events.length;
+    const userIcon = user.profile_image_path || '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px;background:#fff;border-radius:10px;border:1px solid rgba(108,92,231,0.12);margin-bottom:6px">
+      ${cover ? `<img src="${cover}" alt="" style="width:72px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">` : '<div style="width:72px;height:44px;background:#f0f0f0;border-radius:6px;flex-shrink:0"></div>'}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${mag.name || ''}</div>
+        <div style="display:flex;align-items:center;gap:5px;min-width:0">
+          ${userIcon ? `<img src="${userIcon}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover;flex-shrink:0">` : ''}
+          <div style="font-size:11px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${userName}</div>
+        </div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#fd79a8;flex-shrink:0">${count}<span style="font-size:9px;color:#999">本</span></div>
+    </div>`;
+  };
+
+  const half = Math.ceil(groupList.length / 2);
+  const left = groupList.slice(0, half);
+  const right = groupList.slice(half);
+
+  const gridHtml = groupList.length > 6
+    ? `<div class="screenshot-grid">
+        <div>${left.map(cardHTML).join('')}</div>
+        <div>${right.map(cardHTML).join('')}</div>
+      </div>`
+    : `<div>${groupList.map(cardHTML).join('')}</div>`;
+
+  const emptyHtml = groupList.length === 0
+    ? `<div style="text-align:center;padding:32px 0;color:#999;font-size:13px">この期間の追加はありません</div>`
+    : gridHtml;
+
+  const html = `
+    <div style="background:#fffbf2;color:#0a0a14;border-radius:20px;padding:28px 24px;font-family:'Noto Sans JP',sans-serif;max-width:860px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:22px;font-weight:900;color:#333"><span style="font-size:1.5em;font-weight:900;color:#6c5ce7">マ</span>ガジンに追加してくれた方々</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">${periodLabel} ${dateRange}</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:#fff5f8;border-radius:12px;margin-bottom:16px">
+        <img src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-sun.webp" alt="日和" style="width:40px;height:40px;border-radius:50%;flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:#999;margin-bottom:2px">日和</div>
+          <div style="font-size:13px;color:#333;line-height:1.5">${hiyoriLine}</div>
+        </div>
+      </div>
+      ${emptyHtml}
+      <div style="text-align:center;margin-top:16px;font-size:10px;color:#ccc;letter-spacing:2px">観測は続く。 / hasyamo</div>
+    </div>`;
+
+  document.getElementById('sukiScreenshotContent').innerHTML = html;
+  document.getElementById('sukiScreenshotModal').style.display = '';
 }
 
 // ===== Suki Return Tracking =====
@@ -914,18 +1087,24 @@ async function renderMagazines() {
     : allEvents;
 
   // ビュートグル + 期間セレクタHTML
+  const screenshotBtn = magazineView === 'magazine'
+    ? `<button class="toggle-btn" onclick="openMagazineScreenshot()" style="font-size:11px;margin-right:8px">スクショ用</button>`
+    : '';
   const togglesHtml = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;flex-wrap:wrap">
       <div class="toggle-group" id="magazineViewToggle">
         <div class="toggle-btn${magazineView==='magazine'?' active':''}" data-view="magazine">マガジン別</div>
         <div class="toggle-btn${magazineView==='article'?' active':''}" data-view="article">記事別</div>
       </div>
-      <div class="toggle-group" id="magazinePeriodToggle">
-        <div class="toggle-btn${magazinePeriod==='week'?' active':''}" data-period="week">今週</div>
-        <div class="toggle-btn${magazinePeriod==='lastweek'?' active':''}" data-period="lastweek">先週</div>
-        <div class="toggle-btn${magazinePeriod==='month'?' active':''}" data-period="month">今月</div>
-        <div class="toggle-btn${magazinePeriod==='lastmonth'?' active':''}" data-period="lastmonth">先月</div>
-        <div class="toggle-btn${magazinePeriod==='all'?' active':''}" data-period="all">全期間</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap">
+        ${screenshotBtn}
+        <div class="toggle-group" id="magazinePeriodToggle">
+          <div class="toggle-btn${magazinePeriod==='week'?' active':''}" data-period="week">今週</div>
+          <div class="toggle-btn${magazinePeriod==='lastweek'?' active':''}" data-period="lastweek">先週</div>
+          <div class="toggle-btn${magazinePeriod==='month'?' active':''}" data-period="month">今月</div>
+          <div class="toggle-btn${magazinePeriod==='lastmonth'?' active':''}" data-period="lastmonth">先月</div>
+          <div class="toggle-btn${magazinePeriod==='all'?' active':''}" data-period="all">全期間</div>
+        </div>
       </div>
     </div>
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;text-align:right">${range ? getDayLabel(range.start) + '〜' + getDayLabel(range.end) : '全期間'}</div>
@@ -1144,6 +1323,12 @@ async function loadData(urlname) {
     const likesRes = await fetch(base + 'likes.csv' + cacheBust);
     if (likesRes.ok) { likesData = parseCSV(await likesRes.text()); }
 
+    // Comments
+    try {
+      const comRes = await fetch(base + 'comments.csv' + cacheBust);
+      if (comRes.ok) { commentsData = parseCSV(await comRes.text()); }
+    } catch(e) { /* comments.csv is optional */ }
+
     // Followers
     const fRes = await fetch(base + 'followers.csv' + cacheBust);
     if (fRes.ok) {
@@ -1262,6 +1447,8 @@ async function init() {
   if (existingManifest) existingManifest.href = manifestUrl;
 
   await loadData(urlname);
+  // ランキング計算にマガジンデータが必要なため事前ロード
+  await loadMagazines();
 
   // Update header
   document.getElementById('creatorName').textContent = urlname;
@@ -1287,7 +1474,7 @@ async function init() {
   checkVersionUpdate();
 }
 
-const APP_VERSION = '0.5.8';
+const APP_VERSION = '0.6.0';
 const VERSION_KEY = 'fanboard_version';
 
 async function checkVersionUpdate() {
