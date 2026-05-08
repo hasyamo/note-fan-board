@@ -4,256 +4,822 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0a0a14">
-<title>使い方 - 観測は続く。</title>
+<title>MANUAL - 観測は続く。</title>
 <link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg-main: #0a0a14;
-  --bg-card: #14141f;
-  --text-primary: #e8e8f0;
-  --text-secondary: #a0a0b8;
-  --text-muted: #666680;
-  --accent-cyan: #00d4ff;
-  --accent-pink: #fd79a8;
-  --accent-green: #00e676;
-  --accent-amber: #ffc107;
-  --border: #1e1e2e;
-  --font-sans: 'Noto Sans JP', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+/* ============================================================
+   DESIGN TOKENS
+============================================================ */
+:root{
+  --bg-main:#0a0a14;
+  --bg-secondary:#0f0f1a;
+  --bg-card:#14141f;
+  --bg-section:#1a1a2e;
+  --text-primary:#e8e8f0;
+  --text-secondary:#a0a0b8;
+  --text-muted:#666680;
+  --accent-cyan:#00d4ff;
+  --accent-cyan-dim:#0088aa;
+  --accent-pink:#fd79a8;
+  --accent-amber:#ffc107;
+  --accent-green:#00e676;
+  --accent-purple:#a855f7;
+  --border:#1e1e2e;
+  --border-strong:#2a2a3e;
+  --font-sans:'Noto Sans JP','Hiragino Sans',sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',monospace;
+  --nav-w:240px;
+  --top-h:32px;
 }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  background: var(--bg-main);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  line-height: 1.8;
-  padding: 24px 16px 48px;
-  max-width: 640px;
-  margin: 0 auto;
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg-main);
+  color:var(--text-primary);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.8;
+  overflow-x:hidden;
 }
-h1 {
-  font-family: var(--font-sans);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-align: center;
-  color: var(--text-primary);
+a{color:var(--accent-cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ============================================================
+   TOP STATUS BAR
+============================================================ */
+#top-status{
+  position:fixed;top:0;left:0;right:0;
+  min-height:var(--top-h);
+  padding-top:calc(8px + env(safe-area-inset-top, 0px));
+  padding-bottom:8px;
+  z-index:300;
+  background:#000;color:var(--accent-cyan);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;
+  display:flex;align-items:center;
+  padding-left:calc(14px + env(safe-area-inset-left, 0px));
+  padding-right:calc(14px + env(safe-area-inset-right, 0px));
+  gap:12px;
+  border-bottom:1px solid rgba(0,212,255,0.18);
+  white-space:nowrap;
 }
-h1 .h1-lead { font-size: 1.4em; font-weight: 900; }
-h1 .accent { color: var(--accent-cyan); }
-.sub {
-  font-size: 15px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  margin-top: 2px;
-  margin-bottom: 24px;
-  text-align: center;
+#top-status a.back-app{
+  flex-shrink:0;
+  color:var(--accent-cyan);
+  text-decoration:none;
+  letter-spacing:.14em;
+  padding:6px 12px;
+  border:1px solid rgba(0,212,255,0.35);
+  border-radius:6px;
+  white-space:nowrap;
+  transition:all .15s;
 }
-h2 {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--accent-cyan);
-  margin-bottom: 12px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border);
+#top-status a.back-app:hover{
+  background:rgba(0,212,255,0.10);
+  text-decoration:none;
 }
-.section {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+#top-status a.back-app:active{
+  background:rgba(0,212,255,0.18);
 }
-p {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
+
+/* ============================================================
+   LAYOUT
+============================================================ */
+#wrap{
+  display:flex;
+  padding-top:calc(var(--top-h) + env(safe-area-inset-top, 0px));
+  min-height:100vh;
 }
-ul {
-  list-style: none;
-  margin-bottom: 12px;
+
+/* ============================================================
+   SIDEBAR NAV
+============================================================ */
+#nav{
+  width:var(--nav-w);flex-shrink:0;
+  background:#000;
+  position:sticky;
+  top:calc(var(--top-h) + env(safe-area-inset-top, 0px));
+  height:calc(100vh - var(--top-h) - env(safe-area-inset-top, 0px));
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--border-strong);
 }
-ul li {
-  font-size: 13px;
-  color: var(--text-secondary);
-  padding: 4px 0;
-  padding-left: 1.2em;
-  position: relative;
+#nav-logo{
+  padding:24px 20px 20px;border-bottom:1px solid var(--border-strong);
 }
-ul li::before {
-  content: "─";
-  position: absolute;
-  left: 0;
-  color: var(--text-muted);
+#nav-logo .title{
+  font-family:var(--font-sans);
+  font-size:20px;font-weight:900;color:var(--text-primary);
+  letter-spacing:0.5px;
 }
-.label {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 12px;
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 8px;
-  margin-right: 4px;
+#nav-logo .title .accent{color:var(--accent-cyan)}
+#nav-logo .sub{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--text-muted);letter-spacing:.2em;
+  margin-top:4px;
 }
-.label-new { background: var(--accent-cyan); color: #1a1a2e; }
-.label-return { background: var(--accent-green); color: #1a1a2e; }
-.label-regular { background: #d4af37; color: #1a1a2e; }
-.label-occasional { background: var(--text-muted); color: #1a1a2e; }
-.label-atrisk { background: var(--accent-amber); color: #1a1a2e; }
-.score-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0 12px;
-  font-size: 13px;
+#nav-list{padding:14px 0;flex:1}
+#nav-list a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:8px 20px;
+  font-family:var(--font-mono);font-size:11px;
+  color:var(--text-muted);letter-spacing:.12em;
+  border-left:2px solid transparent;
+  transition:all .15s;
 }
-.score-table th, .score-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
+#nav-list a .num{
+  color:var(--accent-cyan-dim);font-weight:600;min-width:22px;
 }
-.score-table th {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
+#nav-list a .label{color:var(--text-secondary)}
+#nav-list a:hover{
+  background:rgba(0,212,255,0.05);
+  border-left-color:var(--accent-cyan);
+  text-decoration:none;
 }
-.score-table td:last-child {
-  font-family: var(--font-mono);
-  color: var(--accent-pink);
-  text-align: right;
+#nav-list a:hover .num{color:var(--accent-cyan)}
+#nav-list a:hover .label{color:var(--text-primary)}
+#nav-foot{
+  padding:14px 20px;border-top:1px solid var(--border-strong);
+  font-family:var(--font-mono);font-size:10px;color:var(--text-muted);
+  letter-spacing:.14em;
 }
-.back {
-  display: block;
-  text-align: left;
-  margin-top: 24px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--accent-cyan);
-  text-decoration: none;
+#nav-foot a{display:block;color:var(--text-secondary);margin-top:6px}
+
+/* ============================================================
+   MAIN
+============================================================ */
+#main{
+  flex:1;min-width:0;
+  padding:48px 56px 96px;
+  max-width:920px;
 }
-.back-top {
-  text-align: left;
-  margin-bottom: 16px;
+.page-head{
+  margin-bottom:48px;
+  padding-bottom:24px;border-bottom:1px solid var(--border-strong);
 }
-.back:hover { text-decoration: underline; }
-.navi {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 16px;
+.page-head .meta{
+  font-family:var(--font-mono);font-size:11px;
+  color:var(--text-muted);letter-spacing:.2em;
 }
-.navi-img {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.page-head h1{
+  font-family:var(--font-sans);
+  font-size:32px;font-weight:900;color:var(--text-primary);
+  letter-spacing:1px;margin:8px 0 4px;
 }
-.navi-body { flex: 1; min-width: 0; }
-.navi-name {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  margin-bottom: 2px;
+.page-head h1 .accent{color:var(--accent-cyan)}
+.page-head .lead{
+  color:var(--text-secondary);font-size:15px;
+  margin-top:8px;
 }
-.navi-line {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.7;
+
+/* ============================================================
+   SECTION
+============================================================ */
+section{margin-bottom:56px;scroll-margin-top:48px}
+section .sec-head{
+  display:flex;align-items:baseline;gap:14px;
+  margin-bottom:18px;padding-bottom:8px;
+  border-bottom:1px solid var(--border-strong);
+}
+section .sec-num{
+  font-family:var(--font-mono);font-size:14px;
+  color:var(--accent-cyan-dim);font-weight:600;letter-spacing:.18em;
+  min-width:36px;
+}
+section .sec-title{
+  font-family:var(--font-sans);font-size:22px;font-weight:700;
+  color:var(--text-primary);letter-spacing:0.5px;
+}
+
+/* ============================================================
+   OPERATOR (CHARACTER)
+============================================================ */
+.operator{
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:20px;padding:14px 16px;
+  background:var(--bg-section);
+  border:1px solid var(--border-strong);
+  border-radius:10px;
+}
+.operator .avatar{
+  width:48px;height:48px;border-radius:50%;
+  border:2px solid var(--accent-cyan);
+  flex-shrink:0;
+}
+.operator .info{flex:1;min-width:0}
+.operator .role{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--accent-cyan);letter-spacing:.18em;
+}
+.operator .name{
+  font-size:16px;font-weight:700;color:var(--text-primary);
+  margin-top:2px;
+}
+.operator .desc{
+  font-size:12px;color:var(--text-muted);
+}
+
+/* ============================================================
+   CONTENT
+============================================================ */
+.body{max-width:680px}
+.body p{margin-bottom:14px;color:var(--text-secondary)}
+.body p strong{color:var(--text-primary);font-weight:700}
+.body ul{margin:14px 0 14px 20px;color:var(--text-secondary)}
+.body ul li{margin-bottom:6px}
+.body code{
+  font-family:var(--font-mono);font-size:12px;
+  background:var(--bg-card);color:var(--accent-cyan);
+  padding:2px 6px;border-radius:4px;
+  border:1px solid var(--border);
+}
+
+/* ============================================================
+   STEP / FEATURE LIST
+============================================================ */
+.feature-list{
+  display:grid;grid-template-columns:1fr;gap:12px;
+  margin-bottom:20px;
+}
+.feature-item{
+  display:flex;gap:14px;
+  padding:14px 16px;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  transition:border-color .15s;
+}
+.feature-item:hover{border-color:var(--accent-cyan-dim)}
+.feature-item .num{
+  font-family:var(--font-mono);font-size:18px;font-weight:600;
+  color:var(--accent-cyan);letter-spacing:.1em;
+  min-width:32px;
+}
+.feature-item .item-body{flex:1;min-width:0}
+.feature-item .item-tag{
+  display:inline-block;
+  font-family:var(--font-mono);font-size:9px;
+  color:var(--accent-cyan);letter-spacing:.2em;
+  border:1px solid var(--accent-cyan-dim);
+  padding:2px 6px;border-radius:3px;
+  margin-bottom:6px;
+}
+.feature-item .item-title{
+  font-size:15px;font-weight:700;color:var(--text-primary);
+  margin-bottom:4px;
+}
+.feature-item .item-desc{
+  font-size:13px;color:var(--text-secondary);line-height:1.7;
+}
+
+/* ============================================================
+   TABLE
+============================================================ */
+table{
+  width:100%;border-collapse:collapse;margin:12px 0 18px;
+  font-size:13px;
+}
+table th,table td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  vertical-align:top;
+}
+table th{
+  font-family:var(--font-mono);font-size:11px;
+  color:var(--accent-cyan);letter-spacing:.12em;font-weight:600;
+  background:var(--bg-card);
+  border-bottom:1px solid var(--accent-cyan-dim);
+}
+table td{color:var(--text-secondary)}
+table td strong{color:var(--text-primary)}
+
+/* ============================================================
+   NOTE / WARN
+============================================================ */
+.note{
+  margin:14px 0;padding:12px 14px;
+  background:rgba(0,212,255,0.04);
+  border-left:3px solid var(--accent-cyan-dim);
+  border-radius:4px;
+  font-size:13px;color:var(--text-secondary);
+}
+.note .label{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--accent-cyan);letter-spacing:.18em;
+  margin-bottom:4px;
+}
+.warn{
+  margin:14px 0;padding:12px 14px;
+  background:rgba(255,193,7,0.04);
+  border-left:3px solid var(--accent-amber);
+  border-radius:4px;
+  font-size:13px;color:var(--text-secondary);
+}
+.warn .label{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--accent-amber);letter-spacing:.18em;
+  margin-bottom:4px;
+}
+
+/* ============================================================
+   FAQ (DETAILS)
+============================================================ */
+details{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:8px;
+  margin-bottom:8px;
+  overflow:hidden;
+}
+details summary{
+  padding:14px 16px;
+  cursor:pointer;
+  font-weight:700;font-size:14px;color:var(--text-primary);
+  display:flex;gap:12px;align-items:center;
+  list-style:none;
+  user-select:none;
+}
+details summary::-webkit-details-marker{display:none}
+details summary::before{
+  content:'+';
+  font-family:var(--font-mono);font-size:18px;
+  color:var(--accent-cyan);
+  width:20px;text-align:center;
+  transition:transform .2s;
+}
+details[open] summary::before{content:'−'}
+details summary:hover{color:var(--accent-cyan)}
+details .faq-body{
+  padding:0 16px 16px 48px;
+  color:var(--text-secondary);font-size:13px;line-height:1.8;
+}
+
+/* ============================================================
+   CHARACTER GRID
+============================================================ */
+.char-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;
+  margin:16px 0 24px;
+}
+.char-card{
+  padding:18px 16px;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  text-align:center;
+}
+.char-card .avatar{
+  width:64px;height:64px;border-radius:50%;
+  border:2px solid var(--accent-cyan);
+  margin:0 auto 12px;display:block;
+}
+.char-card .name{
+  font-size:15px;font-weight:700;color:var(--text-primary);
+  margin-bottom:2px;
+}
+.char-card .role{
+  font-family:var(--font-mono);font-size:10px;
+  color:var(--accent-cyan);letter-spacing:.14em;
+  margin-bottom:8px;
+}
+.char-card .quote{
+  font-size:11px;color:var(--text-muted);
+  line-height:1.6;font-style:italic;
+}
+
+/* ============================================================
+   BACK LINK
+============================================================ */
+.back-link{
+  display:inline-block;
+  margin-top:32px;
+  font-family:var(--font-mono);font-size:12px;
+  color:var(--accent-cyan);letter-spacing:.14em;
+  padding:10px 14px;
+  border:1px solid var(--accent-cyan-dim);
+  border-radius:6px;
+  transition:all .15s;
+}
+.back-link:hover{
+  background:rgba(0,212,255,0.08);
+  text-decoration:none;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+@media (max-width:880px){
+  #wrap{flex-direction:column}
+  #nav{
+    width:100%;height:auto;position:relative;top:0;
+    border-right:none;border-bottom:1px solid var(--border-strong);
+  }
+  #nav-list{display:flex;overflow-x:auto;padding:8px}
+  #nav-list a{
+    flex-shrink:0;padding:8px 12px;
+    border-left:none;border-bottom:2px solid transparent;
+  }
+  #nav-list a:hover{
+    border-left:none;border-bottom-color:var(--accent-cyan);
+  }
+  #nav-logo{padding:18px 16px}
+  #nav-foot{display:none}
+  #main{padding:32px 20px 96px}
+  .page-head h1{font-size:24px}
+  section .sec-title{font-size:18px}
+  table{font-size:12px}
+  #top-status a.back-app { font-size:12px; padding:6px 10px; }
 }
 </style>
 </head>
 <body>
 
-<a class="back back-top" href="./">← 戻る</a>
-
-<h1><span class="h1-lead">観</span>測は<span class="h1-lead accent">続</span><span class="accent">く。</span></h1>
-<p class="sub">使い方</p>
-
-<div class="section">
-  <h2>データ更新</h2>
-  <div class="navi">
-    <img class="navi-img" src="images/eyes-mon.webp" alt="月子">
-    <div class="navi-body">
-      <div class="navi-name">月子</div>
-      <div class="navi-line">データは1日6回、4時間ごとに更新されるわ。ヘッダーの updated を見なさい。<br>……日付の切り替わりは朝5:00よ。深夜0:00〜4:59のスキは前日分。覚えておいて。</div>
-    </div>
-  </div>
+<div id="top-status">
+  <a class="back-app" href="./">← アプリへ戻る</a>
 </div>
 
-<div class="section">
-  <h2>Today</h2>
-  <div class="navi">
-    <img class="navi-img" src="images/eyes-tue.webp" alt="陽">
-    <div class="navi-body">
-      <div class="navi-name">陽</div>
-      <div class="navi-line">昨日スキしてくれた人の一覧と、フォロワー数の推移が見られるよ！<br>フォロワー数の横に前回からの増減が出てるの。グラフの折れ線がフォロワー推移で、棒グラフがもらったスキ数だよ！</div>
+<div id="wrap">
+
+<!-- ============================================================
+     SIDEBAR
+============================================================ -->
+<nav id="nav">
+  <div id="nav-logo">
+    <div class="title"><span class="accent">観</span>測は続く。</div>
+    <div class="sub">MANUAL / v0.7.0</div>
+  </div>
+  <div id="nav-list">
+    <a href="#sec-00"><span class="num">00</span><span class="label">はじめに</span></a>
+    <a href="#sec-01"><span class="num">01</span><span class="label">Today</span></a>
+    <a href="#sec-02"><span class="num">02</span><span class="label">Fans</span></a>
+    <a href="#sec-03"><span class="num">03</span><span class="label">Ranking</span></a>
+    <a href="#sec-04"><span class="num">04</span><span class="label">Magazines</span></a>
+    <a href="#sec-05"><span class="num">05</span><span class="label">キャラ紹介</span></a>
+    <a href="#sec-06"><span class="num">06</span><span class="label">データについて</span></a>
+    <a href="#sec-07"><span class="num">07</span><span class="label">FAQ</span></a>
+  </div>
+  <div id="nav-foot">
+    OBSERVED BY hasyamo
+    <a href="./">← アプリへ戻る</a>
+  </div>
+</nav>
+
+<!-- ============================================================
+     MAIN
+============================================================ -->
+<main id="main">
+
+  <div class="page-head">
+    <div class="meta">MANUAL</div>
+    <h1>「<span class="accent">観</span>測は続く。」 使い方</h1>
+    <div class="lead">
+      昨日、あなたに会いに来た人。<br>
+      この道具は、その記録を残すためにある。
     </div>
   </div>
-</div>
 
-<div class="section">
-  <h2>Fans</h2>
-  <div class="navi">
-    <img class="navi-img" src="images/eyes-thu.webp" alt="凛華">
-    <div class="navi-body">
-      <div class="navi-name">凛華</div>
-      <div class="navi-line">……今週スキしてくれた人を、過去の行動パターンから分類してる。</div>
+  <!-- ====================================================== 00 -->
+  <section id="sec-00">
+    <div class="sec-head">
+      <div class="sec-num">00</div>
+      <div class="sec-title">はじめに</div>
     </div>
-  </div>
-  <ul>
-    <li><span class="label label-new">新規</span>過去にスキした記録がない人</li>
-    <li><span class="label label-return">復帰</span>以前スキしてくれていたが、最近4週はスキがなく、今週戻ってきた人</li>
-    <li><span class="label label-regular">常連</span>直近4週のうち3週以上スキしてくれている人</li>
-    <li><span class="label label-occasional">たまに</span>上記のどれにも当てはまらない人</li>
-    <li><span class="label label-atrisk">離脱危機</span>今週・直近4週ともスキなし。ただし、それ以前は頻繁に来ていた人</li>
-  </ul>
-  <p>スキ返し状態は、あなたがその人の記事にスキしたかどうか。……端末のブラウザに保存されるから、別の端末では反映されない。覚えておいて。</p>
-</div>
 
-<div class="section">
-  <h2>Ranking</h2>
-  <div class="navi">
-    <img class="navi-img" src="images/eyes-fri.webp" alt="るな">
-    <div class="navi-body">
-      <div class="navi-name">るな</div>
-      <div class="navi-line">関係の深さをポイント化してランキングにしてるよ！スキだけじゃなくて、コメントしてくれたかとか、マガジンに入れてくれたかも見てるんだ。</div>
+    <div class="body">
+      <p>「観測は続く。」は、note の <strong>スキ・コメント・マガジン追加</strong> を継続的に観測し、誰が来てくれたかを記録するボードです。</p>
+
+      <p>noteのダッシュボードでは、スキやコメントの「数」はわかっても、「誰が来てくれたか」までは追いにくい。毎週来てくれてる常連さんも、静かに離れていったファンも、気づかないまま過ぎていきます。</p>
+
+      <p>このボードは、その<strong>気づかなさ</strong>に気づくための道具です。</p>
+
+      <div class="note">
+        <div class="label">SCOPE</div>
+        記録と可視化のみ。noteを操作する自動機能はありません。スキ・コメント・マガジン追加は、相手のクリエイターのところへ、自分の足で会いに行ってください。
+      </div>
+
+      <p>4タブ構成です。</p>
+
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="num">01</div>
+          <div class="item-body">
+            <span class="item-tag">today</span>
+            <div class="item-title">Today / 朝、開く</div>
+            <div class="item-desc">フォロワー推移、昨日のスキ速報、最新記事への反応。一日の最初に、誰が来てくれたかを確認する。</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="num">02</div>
+          <div class="item-body">
+            <span class="item-tag">fans</span>
+            <div class="item-title">Fans / 読みに行く</div>
+            <div class="item-desc">スキしてくれた人を新規・復帰・常連・たまに・離脱危機に分類。読みに行ってスキ返ししたかも記録できる。</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="num">03</div>
+          <div class="item-body">
+            <span class="item-tag">ranking</span>
+            <div class="item-title">Ranking / 関係を見る</div>
+            <div class="item-desc">関係の深さでファンランキング。スキだけでなく、コメント・マガジン追加も加点される。</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="num">04</div>
+          <div class="item-body">
+            <span class="item-tag">magazines</span>
+            <div class="item-title">Magazines / 観測する</div>
+            <div class="item-desc">あなたの記事を、誰がマガジンに追加してくれたかの記録。お礼に行くための導線。</div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-  <table class="score-table">
-    <tr><th>要素</th><th>加点</th></tr>
-    <tr><td>スキ（公開1時間以内）</td><td>&times;3</td></tr>
-    <tr><td>スキ（6時間以内）</td><td>&times;2</td></tr>
-    <tr><td>スキ（24時間以内）</td><td>&times;1.5</td></tr>
-    <tr><td>スキ（それ以降）</td><td>&times;1</td></tr>
-    <tr><td>コメント（1件ごと）</td><td>+3</td></tr>
-    <tr><td>マガジン追加（1件ごと）</td><td>+2</td></tr>
-    <tr><td>2記事以上にスキ（1記事ごと）</td><td>+0.5</td></tr>
-  </table>
-  <p>今週・先週・今月・先月の4期間を切り替えて確認できるよ！</p>
-  <p style="color:var(--text-muted);font-size:12px">※スキが0の人はランキング対象外。スキは「読みに来た」の最低限の印として必須にしてる。</p>
-  <p>ランキングの人には💖マークがついてるよ。これは関係の深さを1〜5で表してるの。TOP1の人を基準にして、どれくらい近い関係かが見えるようにしてる。</p>
+  </section>
 
-</div>
-
-<div class="section">
-  <h2>Magazines</h2>
-  <div class="navi">
-    <img class="navi-img" src="images/eyes-sun.webp" alt="日和">
-    <div class="navi-body">
-      <div class="navi-name">日和</div>
-      <div class="navi-line">あなたの記事を、誰かが自分のマガジンに追加してくれた記録だよ。あとからゆっくりお礼をしに行けるように、ここに残しておくね。</div>
+  <!-- ====================================================== 01 -->
+  <section id="sec-01">
+    <div class="sec-head">
+      <div class="sec-num">01</div>
+      <div class="sec-title">Today / 朝、開く</div>
     </div>
-  </div>
-  <ul>
-    <li><span class="label">マガジン別</span>追加してくれた人（マガジン単位）でまとめて表示。カバー画像や運営者アイコンが見られるよ。</li>
-    <li><span class="label">記事別</span>自分の記事単位で「どのマガジンに入ったか」を一覧で見られるよ。</li>
-  </ul>
-  <p>期間フィルタは「今週・先週・今月・先月・全期間」から選べます。自分が運営・参加しているマガジンへの追加は除外されます（他人があなたの記事を気に入って追加してくれたケースのみ表示）。</p>
-  <p style="color:var(--text-muted);font-size:12px">※過去に追加された記録は、正確な追加日時が取れないため、記事の公開日時を初回検出日として扱っています。</p>
-</div>
 
-<a class="back" href="./">← 戻る</a>
+    <div class="operator">
+      <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-tue.webp" alt="陽">
+      <div class="info">
+        <div class="role">ナビゲーター</div>
+        <div class="name">陽 / 朝の報告</div>
+        <div class="desc">明るく、誰が来てくれたかを伝えてくれる。</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <p>朝、開いて確認するためのタブです。3つのサブタブに分かれています。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">概況</h3>
+      <p>フォロワー数の現在値と前日比、過去28日間のフォロワー推移グラフ、もらったスキ数の推移を表示します。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">スキ速報</h3>
+      <p>昨日、誰がスキしてくれたか。スキ件数の多い順に並びます。クリックすると、そのクリエイターのページへ遷移できます。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">最新記事への反応</h3>
+      <p>あなたの最新記事にスキしてくれた人を一覧で表示。スキ返し・コメント・マガジン追加など、対応が済んだら<strong>チェック済みにする</strong>ことで作業状態を記録できます。</p>
+
+      <ul>
+        <li>未チェックの人が上、チェック済みは下に薄く表示</li>
+        <li>並びは、スキしてくれた時刻が古い順</li>
+        <li>チェック状態は端末のブラウザに3日間保存</li>
+      </ul>
+
+      <div class="note">
+        <div class="label">TIPS</div>
+        クリエイターページを開いて戻ってくると、「この人への対応は済みましたか？」と確認モーダルが出ます。スキ返しやコメントが終わったら、その場でチェックしてしまうのが楽です。
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================== 02 -->
+  <section id="sec-02">
+    <div class="sec-head">
+      <div class="sec-num">02</div>
+      <div class="sec-title">Fans / 読みに行く</div>
+    </div>
+
+    <div class="operator">
+      <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-thu.webp" alt="凛華">
+      <div class="info">
+        <div class="role">ナビゲーター</div>
+        <div class="name">凛華 / 関係維持・辛口</div>
+        <div class="desc">関係が切れそうな人を、容赦なく突きつける。</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <p>スキしてくれた人を5つに分類して表示します。</p>
+
+      <table>
+        <tr><th>分類</th><th>条件</th></tr>
+        <tr><td><strong>新規</strong></td><td>今週が初めてスキしてくれた週</td></tr>
+        <tr><td><strong>常連</strong></td><td>直近4週のうち3週以上スキしてくれている</td></tr>
+        <tr><td><strong>復帰</strong></td><td>過去にスキしたことがあるが、直近4週は一度もなかった人が、今週またスキしてくれた</td></tr>
+        <tr><td><strong>たまに</strong></td><td>過去にスキしたことがあり、直近4週のうち1〜2週だけ</td></tr>
+        <tr><td><strong>離脱危機</strong></td><td>以前頻繁にスキしてくれていたが、直近4週は一度もない</td></tr>
+      </table>
+
+      <p>各カードから直接相手のクリエイターページへ移動できます。スキ返しが済んだら<strong>「スキした」</strong>を記録できる戻りモーダル付き。</p>
+
+      <ul>
+        <li>初期表示は50件</li>
+        <li>下までスクロールすると、自動で次の50件が読み込まれる</li>
+        <li>全員表示されたら「以上です」</li>
+      </ul>
+
+      <div class="note">
+        <div class="label">TIPS</div>
+        スキ返しの記録は、端末のブラウザに保存されます。週が変わるとリセットされ、また「未スキ返し」状態から始まります。
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================== 03 -->
+  <section id="sec-03">
+    <div class="sec-head">
+      <div class="sec-num">03</div>
+      <div class="sec-title">Ranking / 関係を見る</div>
+    </div>
+
+    <div class="operator">
+      <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-fri.webp" alt="るな">
+      <div class="info">
+        <div class="role">ナビゲーター</div>
+        <div class="name">るな / 感謝・盛り上げ</div>
+        <div class="desc">関係の深い人を一緒に喜んでくれる、親友のような存在。</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <p>関係の深さでランキング。スキだけでなく、コメントやマガジン追加も評価されます。</p>
+
+      <table>
+        <tr><th>要素</th><th>加点</th></tr>
+        <tr><td>スキ（公開1時間以内）</td><td>×3</td></tr>
+        <tr><td>スキ（6時間以内）</td><td>×2</td></tr>
+        <tr><td>スキ（24時間以内）</td><td>×1.5</td></tr>
+        <tr><td>スキ（それ以降）</td><td>×1</td></tr>
+        <tr><td>コメント（1件ごと）</td><td>+3</td></tr>
+        <tr><td>マガジン追加（1件ごと）</td><td>+2</td></tr>
+        <tr><td>2記事以上にスキ（1記事ごと）</td><td>+0.5</td></tr>
+      </table>
+
+      <p>期間は <strong>今週・先週・今月・先月</strong> を切り替えられます。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">関係の深さ 💖</h3>
+      <p>カードに 💖1〜5 のバッジが付きます。これは関係の深さを5段階で表したもので、TOP1の人を基準に、相対的に決まります。</p>
+
+      <p>スキが0の人はランキングには出ません。コメントやマガジン追加は、スキに加わる加点として効きます。</p>
+
+      <p><strong>スクショ用</strong>ボタンで、ミニログ等に貼りやすいレイアウトに切り替えられます。画像はご自身でスクリーンショットを撮ってください。</p>
+    </div>
+  </section>
+
+  <!-- ====================================================== 04 -->
+  <section id="sec-04">
+    <div class="sec-head">
+      <div class="sec-num">04</div>
+      <div class="sec-title">Magazines / 観測する</div>
+    </div>
+
+    <div class="operator">
+      <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-sun.webp" alt="日和">
+      <div class="info">
+        <div class="role">ナビゲーター</div>
+        <div class="name">日和 / 見守り・広がりを喜ぶ</div>
+        <div class="desc">あなたの記事が誰かのマガジンに迎えられたことを、温かく見届ける。</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <p>あなたの記事を、誰かが自分のマガジンに追加してくれた記録です。</p>
+
+      <p>あとからゆっくりお礼をしに行けるように、ここに残しています。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">表示モード</h3>
+      <ul>
+        <li><strong>マガジン別</strong>: 追加してくれた人をマガジン単位でまとめて表示。カバー画像と運営者アイコンが見られます。</li>
+        <li><strong>記事別</strong>: 自分の記事単位で「どのマガジンに入ったか」を一覧表示。</li>
+      </ul>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">期間フィルタ</h3>
+      <p>今週 / 先週 / 今月 / 先月 / 全期間 から選べます。自分が運営・参加しているマガジンへの追加は除外されます（他人があなたの記事を気に入って追加してくれたケースのみ）。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">導線</h3>
+      <ul>
+        <li><strong>マガジンへ</strong>: そのマガジンページを開く</li>
+        <li><strong>クリエータページへ</strong>: 運営者のnoteページを開く（最新記事にお礼コメントする用）</li>
+      </ul>
+
+      <p style="font-size:12px;color:var(--text-muted);margin-top:14px">過去に追加された分は、追加日時の代わりに記事の公開日を表示しています。</p>
+    </div>
+  </section>
+
+  <!-- ====================================================== 05 -->
+  <section id="sec-05">
+    <div class="sec-head">
+      <div class="sec-num">05</div>
+      <div class="sec-title">キャラ紹介</div>
+    </div>
+
+    <div class="body">
+      <p>このボードには4人の観測者がいます。それぞれが担当するタブで、状況を伝えてくれます。</p>
+
+      <div class="char-grid">
+        <div class="char-card">
+          <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-tue.webp" alt="陽">
+          <div class="name">陽</div>
+          <div class="role">TODAY</div>
+          <div class="quote">「昨日も来てくれてた人がいるよ。会いに行こ！」</div>
+        </div>
+        <div class="char-card">
+          <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-thu.webp" alt="凛華">
+          <div class="name">凛華</div>
+          <div class="role">FANS</div>
+          <div class="quote">「……最近来てない人、放っておくの？」</div>
+        </div>
+        <div class="char-card">
+          <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-fri.webp" alt="るな">
+          <div class="name">るな</div>
+          <div class="role">RANKING</div>
+          <div class="quote">「常連さん多くて嬉しい！ちゃんとお礼しよ！」</div>
+        </div>
+        <div class="char-card">
+          <img class="avatar" src="https://hasyamo.github.io/note-stats-tracker/images/eyes-thumb/eyes-sun.webp" alt="日和">
+          <div class="name">日和</div>
+          <div class="role">MAGAZINES</div>
+          <div class="quote">「ちゃんと見てくれてる人がいるんだね。」</div>
+        </div>
+      </div>
+
+      <div class="note">
+        <div class="label">補足</div>
+        4人は「おはようカノジョ」（hasyamoが運営するnoteアカウント）の世界観に登場するキャラ。観測は続く。では、各タブの語り手として参加してもらっています。
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================================================== 06 -->
+  <section id="sec-06">
+    <div class="sec-head">
+      <div class="sec-num">06</div>
+      <div class="sec-title">データについて</div>
+    </div>
+
+    <div class="body">
+      <h3 style="font-size:15px;color:var(--text-primary);margin:6px 0 10px;">更新のタイミング</h3>
+      <p>1日に6回、4時間ごとを目安に自動更新しています（5:00 / 9:00 / 13:00 / 17:00 / 21:00 / 1:00 JST 前後）。</p>
+      <p>運用環境の都合で、実際には数十分〜数時間ずれて反映されることがあります。最後の更新時刻は、ヘッダーの <code>updated:</code> 表示で確認できます。</p>
+
+      <h3 style="font-size:15px;color:var(--text-primary);margin:22px 0 10px;">扱っている情報</h3>
+      <p>このボードで見える情報は、すべて <strong>note 上で誰でも見られる公開情報</strong> です。</p>
+      <ul>
+        <li>あなたのフォロワー数</li>
+        <li>あなたの記事のスキ・コメント・マガジン追加</li>
+      </ul>
+      <p>note の非公開情報や PV は扱っていません。</p>
+    </div>
+  </section>
+
+  <!-- ====================================================== 07 -->
+  <section id="sec-07">
+    <div class="sec-head">
+      <div class="sec-num">07</div>
+      <div class="sec-title">FAQ</div>
+    </div>
+
+    <div class="body">
+      <details>
+        <summary>データはどれくらい遅れて反映されますか？</summary>
+        <div class="faq-body">
+4時間ごとを目安に更新していますが、運用環境の都合で実際には数時間ずれて反映されることもあります。前回の更新時刻はヘッダーの <code>updated:</code> 表示で確認できます。
+        </div>
+      </details>
+
+      <details>
+        <summary>スキ返しの記録は他の端末でも共有されますか？</summary>
+        <div class="faq-body">
+          されません。記録はブラウザのlocalStorageに保存されるため、端末ごとに独立しています。週が変わると自動でリセットされます。
+        </div>
+      </details>
+
+      <details>
+        <summary>過去のデータは見られますか？</summary>
+        <div class="faq-body">
+          観測を始めた時点でわかる範囲のスキ・コメント・マガジン追加から表示しています。古い記事のコメントなど、一部の過去分は取れない場合があります。<br>
+          以降は4時間ごとを目安に、新しい反応を追記していきます。
+        </div>
+      </details>
+
+      <details>
+        <summary>PWAとしてホーム画面に追加できますか？</summary>
+        <div class="faq-body">
+          できます。iOSのSafariなら共有ボタン → ホーム画面に追加。Androidのブラウザなら「ホーム画面に追加」メニューから。
+        </div>
+      </details>
+
+      <details>
+        <summary>不具合や要望はどこへ伝えればいいですか？</summary>
+        <div class="faq-body">
+          <a href="https://note.com/hasyamo" target="_blank" rel="noopener">noteの hasyamo</a> 宛にコメントまたはDMで伝えてください。観測は続いていますが、改善も続けています。
+        </div>
+      </details>
+
+      <a class="back-link" href="./">← アプリへ戻る</a>
+    </div>
+  </section>
+
+</main>
+</div>
 
 </body>
 </html>

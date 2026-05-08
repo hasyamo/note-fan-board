@@ -982,6 +982,11 @@ function appendPeopleNext(sentinel) {
     sentinel.outerHTML = '<div class="people-end">以上です</div>';
   } else {
     sentinel.dataset.shown = newShown;
+    // 続きがあるなら observer に再アタッチして更にスクロールしたら次を出す
+    if (_peopleObserver) {
+      _peopleObserver.unobserve(sentinel);
+      _peopleObserver.observe(sentinel);
+    }
   }
   loadAvatars();
 }
@@ -999,8 +1004,13 @@ function setupPeopleObserver() {
       }
     });
   }, { rootMargin: '200px' });
-  document.querySelectorAll('.people-sentinel').forEach(el => {
-    _peopleObserver.observe(el);
+  // 表示中(active or display:none以外)の people-content 内のセンチネルだけ observe
+  document.querySelectorAll('.people-content').forEach(content => {
+    // display:none の要素内のセンチネルは観測しない（タブ切替時にもう一度 setup する）
+    if (content.style.display === 'none') return;
+    content.querySelectorAll('.people-sentinel').forEach(el => {
+      _peopleObserver.observe(el);
+    });
   });
 }
 
@@ -1817,7 +1827,7 @@ async function init() {
   checkVersionUpdate();
 }
 
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.7.0';
 const VERSION_KEY = 'fanboard_version';
 
 async function checkVersionUpdate() {
