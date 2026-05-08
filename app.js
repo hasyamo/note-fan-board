@@ -305,14 +305,53 @@ document.querySelectorAll('.tab-bar-btn').forEach(btn => {
 });
 
 // ===== Today Tab =====
+// Today タブのサブタブ
+let todaySubTab = 'overview'; // 'overview' | 'yesterday' | 'latest_reaction'
+
 function renderToday() {
   const el = document.getElementById('todayContent');
   if (likesData.length === 0) { el.innerHTML = '<div class="no-data">データなし</div>'; return; }
 
+  const subToggleHtml = `
+    <div class="today-sub-tabs">
+      <button class="today-sub-tab${todaySubTab==='overview'?' active':''}" data-sub="overview">概況</button>
+      <button class="today-sub-tab${todaySubTab==='yesterday'?' active':''}" data-sub="yesterday">スキ速報</button>
+      <button class="today-sub-tab${todaySubTab==='latest_reaction'?' active':''}" data-sub="latest_reaction">最新記事への反応</button>
+    </div>
+  `;
+
+  let result;
+  if (todaySubTab === 'yesterday') {
+    result = renderTodayYesterday();
+  } else if (todaySubTab === 'latest_reaction') {
+    result = renderTodayLatestReaction();
+  } else {
+    result = renderTodayOverview();
+  }
+
+  // 順序: キャラコメント → サブタブ → コンテンツ
+  el.innerHTML = naviHTML('you', result.line) + subToggleHtml + result.body;
+
+  // サブタブのリスナー
+  document.querySelectorAll('.today-sub-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      todaySubTab = btn.dataset.sub;
+      renderToday();
+    });
+  });
+
+  loadAvatars();
+  if (todaySubTab === 'overview' && followersData.length >= 2) setTimeout(drawFollowerChart, 50);
+
+  // 「最新記事への反応」用の操作リスナー
+  if (todaySubTab === 'latest_reaction') attachLatestReactionListeners();
+}
+
+// ===== Today: 概況 =====
+function renderTodayOverview() {
   const today = getTodayJST();
   const yesterday = formatDate(new Date(parseDate(today).getTime() - 86400000));
 
-  // Yesterday's likes
   const yesterdayLikes = likesData.filter(l => getRankingDate(l.liked_at) === yesterday);
   const userMap = {};
   yesterdayLikes.forEach(l => {
@@ -324,11 +363,9 @@ function renderToday() {
   });
   const yesterdayUsers = Object.values(userMap).sort((a, b) => b.count - a.count);
 
-  // Classify yesterday's users
   const userWeeks = buildUserWeeks();
   const yesterdayClassified = {};
   yesterdayUsers.forEach(u => {
-    // Find uid from likesData
     const like = yesterdayLikes.find(l => (l.like_username || l.like_user_urlname) === u.name || l.like_user_urlname === u.urlname);
     if (like) {
       yesterdayClassified[like.like_user_id] = classifyUser(like.like_user_id, yesterday, userWeeks);
@@ -347,7 +384,6 @@ function renderToday() {
     return like && yesterdayClassified[like.like_user_id] === 'regular';
   });
 
-  // Character line (priority: return > new > regular > count > 0)
   let youLine;
   if (returnUsers.length > 0) {
     youLine = pickLine('you', 'return_with_name', { name: returnUsers[0].name });
@@ -363,38 +399,62 @@ function renderToday() {
     youLine = pickLine('you', 'no_visitors');
   }
 
-  let html = naviHTML('you', youLine);
-
-  // Follower section
+  let body = '';
   if (followersData.length > 0) {
     const latest = followersData[followersData.length - 1];
     const prev = followersData.length >= 2 ? followersData[followersData.length - 2] : latest;
     const diff = latest.follower_count - prev.follower_count;
     const sign = diff >= 0 ? '+' : '';
     const diffColor = diff >= 0 ? 'var(--accent-green)' : 'var(--accent-pink)';
-    html += `<div class="section">
+    body += `<div class="section">
       <div class="section-title">フォロワー</div>
       <div style="font-family:var(--font-mono);font-size:24px;font-weight:700">${latest.follower_count}<span style="font-size:14px;color:${diffColor};margin-left:8px">${sign}${diff}</span></div>`;
 
-    // Follower chart
     if (followersData.length >= 2) {
-      html += `<div style="display:flex;gap:16px;font-size:10px;color:var(--text-muted);margin-top:12px;margin-bottom:4px">
+      body += `<div style="display:flex;gap:16px;font-size:10px;color:var(--text-muted);margin-top:12px;margin-bottom:4px">
         <span><span style="color:var(--accent-cyan)">━</span> フォロワー</span>
         <span><span style="color:var(--accent-pink);opacity:0.5">█</span> もらったスキ数</span>
       </div>`;
-      html += `<div class="chart-wrap"><canvas id="followerCanvas"></canvas></div>`;
+      body += `<div class="chart-wrap"><canvas id="followerCanvas"></canvas></div>`;
     }
-    html += `</div>`;
+    body += `</div>`;
+  }
+  return { line: youLine, body };
+}
+
+// ===== Today: 昨日のスキ速報 =====
+function renderTodayYesterday() {
+  const today = getTodayJST();
+  const yesterday = formatDate(new Date(parseDate(today).getTime() - 86400000));
+
+  const yesterdayLikes = likesData.filter(l => getRankingDate(l.liked_at) === yesterday);
+  const userMap = {};
+  yesterdayLikes.forEach(l => {
+    const uid = l.like_user_id;
+    if (!userMap[uid]) {
+      userMap[uid] = { name: l.like_username || l.like_user_urlname || uid, urlname: l.like_user_urlname || '', count: 0, followerCount: parseInt(l.follower_count) || 0 };
+    }
+    userMap[uid].count++;
+  });
+  const yesterdayUsers = Object.values(userMap).sort((a, b) => b.count - a.count);
+  const totalSuki = yesterdayLikes.length;
+
+  // セリフ（陽）: 概況と同じFans分類ベースだが、ここではスキ件数中心
+  let youLine;
+  if (yesterdayUsers.length === 0) {
+    youLine = pickLine('you', 'no_visitors');
+  } else if (yesterdayUsers.length >= 5) {
+    youLine = pickLine('you', 'many_visitors', { count: yesterdayUsers.length });
+  } else {
+    youLine = pickLine('you', 'some_visitors', { count: yesterdayUsers.length });
   }
 
-  // Yesterday's suki
-  const totalSuki = yesterdayLikes.length;
-  html += `<div class="section">
+  let body = `<div class="section">
     <div class="section-title">昨日のスキ速報 <span style="font-weight:400;color:var(--text-muted)">${getDayLabel(yesterday)}</span></div>
     <div class="suki-total"><span class="suki-total-count">${totalSuki}</span><span class="suki-total-unit">スキ</span></div>`;
 
   if (yesterdayUsers.length > 0) {
-    html += yesterdayUsers.map(u => {
+    body += yesterdayUsers.map(u => {
       const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
       return `<a class="person" href="${profileUrl}" target="_blank" rel="noopener">
         <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23333' width='36' height='36' rx='18'/%3E%3C/svg%3E" alt="">
@@ -403,13 +463,258 @@ function renderToday() {
       </a>`;
     }).join('');
   } else {
-    html += `<div class="no-data">昨日のスキはありません</div>`;
+    body += `<div class="no-data">昨日のスキはありません</div>`;
   }
-  html += `</div>`;
+  body += `</div>`;
+  return { line: youLine, body };
+}
 
-  el.innerHTML = html;
-  loadAvatars();
-  if (followersData.length >= 2) setTimeout(drawFollowerChart, 50);
+// ===== Today: 最新記事への反応 =====
+const LATEST_REACTION_TTL_DAYS = 3;
+
+function latestReactionStorageKey(noteKey, likerUrlname) {
+  return `latestReactionCheck:${creatorUrlname}:${noteKey}:${likerUrlname}`;
+}
+
+function getLatestReactionCheck(noteKey, likerUrlname) {
+  if (!likerUrlname) return null;
+  try {
+    const raw = localStorage.getItem(latestReactionStorageKey(noteKey, likerUrlname));
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data.expiresAt && new Date(data.expiresAt) < new Date()) {
+      localStorage.removeItem(latestReactionStorageKey(noteKey, likerUrlname));
+      return null;
+    }
+    return data;
+  } catch(e) { return null; }
+}
+
+function setLatestReactionCheck(noteKey, likerUrlname, status) {
+  if (!likerUrlname) return;
+  const now = new Date();
+  const expires = new Date(now.getTime() + LATEST_REACTION_TTL_DAYS * 86400000);
+  const data = { status, checkedAt: now.toISOString(), expiresAt: expires.toISOString() };
+  localStorage.setItem(latestReactionStorageKey(noteKey, likerUrlname), JSON.stringify(data));
+}
+
+function clearLatestReactionCheck(noteKey, likerUrlname) {
+  if (!likerUrlname) return;
+  localStorage.removeItem(latestReactionStorageKey(noteKey, likerUrlname));
+}
+
+function renderTodayLatestReaction() {
+  if (!articlesData || articlesData.length === 0) {
+    return { line: '最新記事のデータがまだありません。', body: '<div class="no-data">最新記事への反応はまだ表示できません。</div>' };
+  }
+  // 最新記事
+  const sorted = articlesData.slice().sort((a, b) => (b.published_at || '').localeCompare(a.published_at || ''));
+  const latest = sorted[0];
+  if (!latest) {
+    return { line: '最新記事が見つかりません。', body: '<div class="no-data">最新記事が見つかりません。</div>' };
+  }
+
+  // 最新記事へのスキ
+  const latestLikes = likesData.filter(l => l.note_key === latest.key);
+  // urlname基準でユニーク化（同一人物が重複登録されてないはずだが念のため）
+  const seen = new Set();
+  const unique = [];
+  for (const l of latestLikes) {
+    const key = l.like_user_urlname || l.like_user_id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(l);
+  }
+  // スキ時刻 古い順
+  unique.sort((a, b) => (a.liked_at || '').localeCompare(b.liked_at || ''));
+
+  // Fans分類
+  const userWeeks = buildUserWeeks();
+  const today = getTodayJST();
+
+  // チェック状態と分類を付与
+  const enriched = unique.map(l => {
+    const cat = classifyUser(l.like_user_id, today, userWeeks);
+    const check = getLatestReactionCheck(latest.key, l.like_user_urlname || l.like_user_id);
+    return {
+      uid: l.like_user_id,
+      urlname: l.like_user_urlname || '',
+      name: l.like_username || l.like_user_urlname || l.like_user_id,
+      followerCount: parseInt(l.follower_count) || 0,
+      likedAt: l.liked_at,
+      category: cat,
+      checked: !!(check && check.status === 'checked'),
+    };
+  });
+
+  // 未チェック → チェック済み の順、各グループ内は古い順（既にソート済み）
+  const unchecked = enriched.filter(e => !e.checked);
+  const checked = enriched.filter(e => e.checked);
+  const all = [...unchecked, ...checked];
+
+  // セリフ（陽）
+  let youLine;
+  if (enriched.length === 0) {
+    youLine = '最新記事への反応はまだないよ。これから集まってくるね！';
+  } else if (unchecked.length === 0) {
+    youLine = `最新記事の${enriched.length}人、ぜんぶ会いに行ったね！すごい！`;
+  } else if (unchecked.length >= 10) {
+    youLine = `最新記事に${enriched.length}人来てくれたよ！${unchecked.length}人、まだ会いに行けてないから順番に行こう！`;
+  } else {
+    youLine = `最新記事に${enriched.length}人来てくれたよ。${unchecked.length}人、まだ会いに行けてないよ！`;
+  }
+
+  const articleUrl = `https://note.com/${creatorUrlname}/n/${latest.key}`;
+  let body = `<div class="latest-reaction-desc">最新記事にスキしてくれた人を表示します。<br>相手のページを見に行って、スキ返し・コメント・マガジン追加などが済んだらチェックしてください。</div>`;
+  body += `<div class="latest-reaction-meta">
+    <a class="latest-reaction-article" href="${articleUrl}" target="_blank" rel="noopener">「${latest.title}」</a>
+    <div class="latest-reaction-counts">${enriched.length}人がスキ｜未チェック ${unchecked.length}人</div>
+  </div>`;
+
+  if (enriched.length === 0) {
+    body += `<div class="no-data">最新記事へのスキはまだありません。</div>`;
+    return { line: youLine, body };
+  }
+
+  body += '<div class="latest-reaction-list">';
+  body += all.map(u => latestReactionCard(u, latest.key)).join('');
+  body += '</div>';
+  return { line: youLine, body };
+}
+
+function latestReactionCard(u, noteKey) {
+  const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
+  const labels = [];
+  if (u.category === 'new') labels.push('<span class="lr-label lr-label-new">新規</span>');
+  else if (u.category === 'regular') labels.push('<span class="lr-label lr-label-regular">常連</span>');
+  else if (u.category === 'return') labels.push('<span class="lr-label lr-label-return">久しぶり</span>');
+  const labelsHtml = labels.join('');
+
+  const timeStr = u.likedAt ? formatLikeTime(u.likedAt) : '';
+
+  return `<div class="lr-card${u.checked ? ' lr-checked' : ''}" data-liker="${u.urlname}" data-note="${noteKey}" data-name="${escapeAttr(u.name)}">
+    <div class="lr-header">
+      <a href="${profileUrl}" target="_blank" rel="noopener" class="lr-avatar-link">
+        <img class="person-avatar" data-urlname="${u.urlname}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect fill='%23333' width='40' height='40' rx='20'/%3E%3C/svg%3E" alt="">
+      </a>
+      <div class="lr-header-info">
+        <a class="lr-name" href="${profileUrl}" target="_blank" rel="noopener">${u.name}</a>
+        ${u.urlname ? `<div class="lr-urlname">@${u.urlname}</div>` : ''}
+      </div>
+      ${u.checked ? '<span class="lr-checked-mark">✅ チェック済み</span>' : ''}
+    </div>
+    <div class="lr-meta">
+      ${labelsHtml}
+      ${timeStr ? `<span class="lr-time">${timeStr}</span>` : ''}
+      ${u.followerCount > 0 ? `<span class="lr-followers">${u.followerCount.toLocaleString()} followers</span>` : ''}
+    </div>
+    <div class="lr-actions">
+      <a class="lr-action-btn lr-action-visit" href="${profileUrl}" target="_blank" rel="noopener" data-action="visit">この人のページへ</a>
+      ${u.checked
+        ? `<button class="lr-action-btn lr-action-uncheck" data-action="uncheck">チェック解除</button>`
+        : `<button class="lr-action-btn lr-action-check" data-action="check">チェック済みにする</button>`
+      }
+    </div>
+  </div>`;
+}
+
+function escapeAttr(s) {
+  return (s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatLikeTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d)) return '';
+  // JSTで yyyy-MM-dd HH:mm 形式
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${hh}:${mm}`;
+}
+
+function attachLatestReactionListeners() {
+  document.querySelectorAll('.lr-card .lr-action-check').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const card = btn.closest('.lr-card');
+      const liker = card.dataset.liker;
+      const noteKey = card.dataset.note;
+      setLatestReactionCheck(noteKey, liker, 'checked');
+      renderToday();
+    });
+  });
+  document.querySelectorAll('.lr-card .lr-action-uncheck').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const card = btn.closest('.lr-card');
+      const liker = card.dataset.liker;
+      const noteKey = card.dataset.note;
+      clearLatestReactionCheck(noteKey, liker);
+      renderToday();
+    });
+  });
+  // クリエイターページへ遷移する瞬間に「戻りモーダル」用にpending登録
+  document.querySelectorAll('.lr-card .lr-action-visit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.lr-card');
+      const liker = card.dataset.liker;
+      const noteKey = card.dataset.note;
+      const name = card.dataset.name || liker;
+      setPendingLatestReaction(noteKey, liker, name);
+    });
+  });
+}
+
+// ===== Latest Reaction 戻りモーダル =====
+const STORAGE_KEY_LR_PENDING = 'fanboard_pending_latest_reaction';
+
+function setPendingLatestReaction(noteKey, urlname, name) {
+  sessionStorage.setItem(STORAGE_KEY_LR_PENDING, JSON.stringify({ noteKey, urlname, name }));
+}
+
+function checkPendingLatestReaction() {
+  const raw = sessionStorage.getItem(STORAGE_KEY_LR_PENDING);
+  if (!raw) return;
+  sessionStorage.removeItem(STORAGE_KEY_LR_PENDING);
+  let data;
+  try { data = JSON.parse(raw); } catch(e) { return; }
+  const { noteKey, urlname, name } = data;
+  const existing = getLatestReactionCheck(noteKey, urlname);
+  if (existing && existing.status === 'checked') return; // すでにチェック済みなら何もしない
+  showLatestReactionReturnModal(noteKey, urlname, name);
+}
+
+function showLatestReactionReturnModal(noteKey, urlname, name) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div style="max-width:400px;margin:120px auto;padding:24px;background:var(--section-bg);border-radius:16px;border:1px solid var(--border);text-align:center">
+      <img src="${charImgSrc('you')}" alt="陽" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--accent-cyan);margin-bottom:8px">
+      <div style="font-size:15px;color:var(--text-primary);margin-bottom:6px">この人への対応は済みましたか？</div>
+      <div style="font-size:14px;color:var(--text-muted);margin-bottom:16px">${name}さん</div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button onclick="event.preventDefault();handleLatestReactionAnswer('${noteKey}','${urlname}',true,this)" style="padding:10px 24px;background:var(--accent-pink);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">チェック済み</button>
+        <button onclick="event.preventDefault();handleLatestReactionAnswer('${noteKey}','${urlname}',false,this)" style="padding:10px 24px;background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer">まだ</button>
+      </div>
+    </div>`;
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.body.appendChild(modal);
+  modal.querySelector('button').focus();
+}
+
+function handleLatestReactionAnswer(noteKey, urlname, checked, btn) {
+  if (checked) setLatestReactionCheck(noteKey, urlname, 'checked');
+  btn.closest('.modal-overlay').remove();
+  // Today タブが開いていてサブタブが latest_reaction なら再描画
+  const todayTab = document.getElementById('tabToday');
+  if (todayTab && todayTab.classList.contains('active') && todaySubTab === 'latest_reaction') {
+    renderToday();
+  }
 }
 
 function drawFollowerChart() {
@@ -629,9 +934,10 @@ function renderFans() {
 
   el.innerHTML = html;
   loadAvatars();
+  setupPeopleObserver();
 }
 
-const PERSON_PAGE_SIZE = 20;
+const PERSON_PAGE_SIZE = 50;
 
 function personCardHTML(u) {
   const profileUrl = u.urlname ? `https://note.com/${u.urlname}` : '#';
@@ -649,33 +955,53 @@ function personCardHTML(u) {
 
 let _peopleLists = {};
 
-function loadMorePeople(btn) {
-  const content = btn.closest('.people-content');
+function personListHTML(list, emptyMsg) {
+  if (list.length === 0) return `<div class="no-data">${emptyMsg}</div>`;
+  const initial = list.slice(0, PERSON_PAGE_SIZE).map(u => personCardHTML(u)).join('');
+  const hasMore = list.length > PERSON_PAGE_SIZE;
+  const sentinel = hasMore
+    ? `<div class="people-sentinel" data-shown="${PERSON_PAGE_SIZE}"></div>`
+    : (list.length > 0 ? '<div class="people-end">以上です</div>' : '');
+  return initial + sentinel;
+}
+
+function appendPeopleNext(sentinel) {
+  const content = sentinel.closest('.people-content');
+  if (!content) return;
   const tab = content.dataset.tab;
   const list = _peopleLists[tab] || [];
-  const shown = parseInt(btn.dataset.shown) || PERSON_PAGE_SIZE;
+  const shown = parseInt(sentinel.dataset.shown) || PERSON_PAGE_SIZE;
   const next = list.slice(shown, shown + PERSON_PAGE_SIZE);
+  if (next.length === 0) {
+    sentinel.outerHTML = '<div class="people-end">以上です</div>';
+    return;
+  }
+  sentinel.insertAdjacentHTML('beforebegin', next.map(u => personCardHTML(u)).join(''));
   const newShown = shown + next.length;
-  const remaining = list.length - newShown;
-
-  btn.insertAdjacentHTML('beforebegin', next.map(u => personCardHTML(u)).join(''));
-
-  if (remaining > 0) {
-    btn.dataset.shown = newShown;
-    btn.textContent = `もっと見る（残り${remaining}人）`;
+  if (newShown >= list.length) {
+    sentinel.outerHTML = '<div class="people-end">以上です</div>';
   } else {
-    btn.remove();
+    sentinel.dataset.shown = newShown;
   }
   loadAvatars();
 }
 
-function personListHTML(list, emptyMsg) {
-  if (list.length === 0) return `<div class="no-data">${emptyMsg}</div>`;
-  const initial = list.slice(0, PERSON_PAGE_SIZE).map(u => personCardHTML(u)).join('');
-  const moreBtn = list.length > PERSON_PAGE_SIZE
-    ? `<button class="more-btn" onclick="loadMorePeople(this)" data-list-id="${Math.random().toString(36).slice(2)}" data-shown="${PERSON_PAGE_SIZE}">もっと見る（残り${list.length - PERSON_PAGE_SIZE}人）</button>`
-    : '';
-  return initial + moreBtn;
+let _peopleObserver = null;
+
+function setupPeopleObserver() {
+  if (_peopleObserver) {
+    _peopleObserver.disconnect();
+  }
+  _peopleObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        appendPeopleNext(entry.target);
+      }
+    });
+  }, { rootMargin: '200px' });
+  document.querySelectorAll('.people-sentinel').forEach(el => {
+    _peopleObserver.observe(el);
+  });
 }
 
 function switchPeopleTab(btn, tab) {
@@ -687,6 +1013,8 @@ function switchPeopleTab(btn, tab) {
     el.style.display = el.dataset.tab === tab ? '' : 'none';
     el.classList.toggle('active', el.dataset.tab === tab);
   });
+  // 切替先タブの無限スクロール監視を再セットアップ
+  setupPeopleObserver();
 }
 
 // ===== Ranking Tab =====
@@ -1042,7 +1370,10 @@ function handleReturnAnswer(urlname, liked, btn) {
 
 // Check when returning from note (tab switch back)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') setTimeout(checkPendingVisit, 800);
+  if (document.visibilityState === 'visible') {
+    setTimeout(checkPendingVisit, 800);
+    setTimeout(checkPendingLatestReaction, 800);
+  }
 });
 
 // ===== Magazines Tab =====
