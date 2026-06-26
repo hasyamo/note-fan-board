@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>はしゃも — 読者関係グラフ</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080c14;color:#e0e0e0;font-family:'Hiragino Sans','Yu Gothic',sans-serif;overflow:hidden}
+#canvas{display:block;position:absolute;top:32px;left:0}
+#icon-layer{position:absolute;top:32px;left:200px;width:calc(100% - 200px);height:calc(100% - 32px);pointer-events:none;overflow:hidden}
+.node-el{position:absolute;border-radius:50%;border:2px solid transparent;object-fit:cover;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;transition:border-color 0.15s,opacity 0.3s}
+.node-el:hover{z-index:100!important}
+.node-el.selected{border-color:#fff!important;box-shadow:0 0 10px #fff4}
+#ui{position:fixed;top:32px;left:0;width:200px;height:calc(100vh - 32px);background:#020817f0;border-right:1px solid #38bdf822;padding:14px 12px;overflow-y:auto;z-index:20;font-family:'Courier New',monospace}
+#ui-title{font-size:10px;color:#38bdf8;letter-spacing:4px;text-transform:uppercase;margin-bottom:4px}
+#ui-creator{font-size:16px;color:#e0f2fe;letter-spacing:2px;margin-bottom:14px;font-weight:bold}
+#topbar{position:fixed;top:0;left:0;width:100%;height:32px;background:#020817ee;border-bottom:1px solid #38bdf822;display:flex;align-items:center;padding:0 16px;z-index:30;font-family:'Courier New',monospace;font-size:11px;backdrop-filter:blur(6px)}
+.tb-left{display:flex;align-items:center;gap:0}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:0}
+.tb-section{color:#38bdf8;letter-spacing:3px;white-space:nowrap}
+.tb-slash{color:#38bdf888;margin:0 8px}
+.tb-sep{color:#38bdf833;margin:0 10px}
+.tb-label{color:#38bdf866;letter-spacing:2px;margin-right:5px;font-size:10px}
+.tb-val{color:#ffffff;font-weight:bold;letter-spacing:1px}
+.tb-badge{border:1px solid #ffffff88;padding:2px 10px;color:#ffffff;letter-spacing:3px;font-size:10px;margin-left:12px}
+#tb-snapshot{background:transparent;color:#f97316;border-color:#f97316}
+.stat{font-size:12px;color:#7ab8d0;letter-spacing:1px;margin:4px 0;display:flex;justify-content:space-between;align-items:baseline}.stat b{color:#38bdf8;font-size:15px;font-weight:bold;letter-spacing:0;font-family:'Courier New',monospace}
+.section{margin-top:14px;padding-top:10px;border-top:1px solid #38bdf818}
+.section-title{font-size:10px;color:#2a5070;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
+.month-btn{display:block;width:100%;padding:5px 8px;margin:2px 0;border:none;border-left:2px solid #1a3050;background:transparent;color:#3a7090;font-size:13px;cursor:pointer;text-align:left;font-family:'Courier New',monospace;transition:color 0.1s,border-color 0.1s}
+.month-btn:hover{border-color:#38bdf8;color:#7aecff}
+.month-btn.active{border-color:#38bdf8;color:#38bdf8}
+.month-btn.all.active{border-color:#e0f2fe;color:#e0f2fe}
+.layer-btn{display:flex;align-items:center;gap:7px;padding:4px 6px;margin:2px 0;font-size:12px;color:#2a5070;cursor:pointer;user-select:none;font-family:'Courier New',monospace;border-left:2px solid transparent;transition:color 0.1s,border-color 0.1s}
+.layer-count{margin-left:auto;font-size:10px;color:#2a5070;min-width:20px;text-align:right}
+.layer-group-title{font-size:9px;color:#2a5070;letter-spacing:2px;margin:4px 0 2px 6px}
+.layer-btn.on{color:#5aaabb;border-left-color:#38bdf844}
+.layer-btn:hover{color:#7aecff;border-left-color:#38bdf8}
+.type-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+#popup{position:fixed;display:none;z-index:1000;width:100%;max-width:360px;pointer-events:none}
+#popup-inner{padding:18px 18px 12px;border:1px solid #38bdf8;border-radius:10px;background:rgba(8,17,38,0.95);box-shadow:0 0 0 1px rgba(56,189,248,0.3),0 0 22px 2px rgba(56,189,248,0.3);position:relative;pointer-events:auto}
+#popup-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+#popup-icon{width:44px;height:44px;border-radius:50%;border:1px solid #38bdf866;object-fit:cover;flex-shrink:0}
+#popup-header-text{flex:1;min-width:0}
+#popup-badge{font-size:9px;color:#7aecff;letter-spacing:2px;font-family:'Courier New',monospace;display:block;margin-bottom:2px}
+#popup-name{font-size:13px;color:#e0f2fe;font-weight:bold;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#popup-text{color:#e0f2fe;font-family:'Courier New',monospace;font-size:12px;line-height:1.8;letter-spacing:0.04em;text-shadow:0 0 6px rgba(56,189,248,0.4)}
+.popup-row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #38bdf811;padding:2px 0}
+.popup-row:last-child{border-bottom:none}
+.popup-lbl{color:#4a90b0;font-size:10px;letter-spacing:1px;white-space:nowrap}
+.popup-val{color:#e0f2fe;font-size:13px;font-weight:bold;text-align:right}
+.popup-val.active{color:#4affa0}
+.popup-val.silent{color:#4a7090}
+.popup-divider{height:1px;background:#38bdf822;margin:6px 0}
+.popup-link{display:block;margin-top:6px;color:#38bdf8;font-size:10px;letter-spacing:1px;text-decoration:none;cursor:pointer}
+.popup-link:hover{color:#7aecff}
+#popup-hint{margin-top:10px;text-align:right;color:rgba(186,230,253,0.55);font-size:10px;letter-spacing:0.08em;font-family:'Courier New',monospace;animation:kc-blink 1.4s steps(1) infinite}
+@keyframes kc-blink{50%{opacity:0.2}}
+#popup-close{position:absolute;top:8px;right:10px;font-size:11px;color:#38bdf855;cursor:pointer}
+#popup-close:hover{color:#38bdf8}
+.type-badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;margin-bottom:6px}
+#controls{position:fixed;bottom:20px;right:20px;z-index:20;display:flex;flex-direction:column;gap:5px;align-items:center}
+.ctrl-group{display:flex;gap:5px;align-items:center;justify-content:center}
+.ctrl-btn{width:38px;height:38px;border-radius:50%;border:1px solid #38bdf8;background:#0a1828cc;color:#38bdf8;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);user-select:none;line-height:1;box-shadow:0 0 8px #38bdf833;transition:background 0.1s,box-shadow 0.1s}
+.ctrl-btn:hover{background:#0d2a3a;box-shadow:0 0 14px #38bdf866;color:#7aecff}
+.ctrl-btn:active{background:#38bdf822;color:#fff}
+.ctrl-center{width:38px;height:38px;border-radius:50%;border:1px solid #38bdf844;background:#020817cc;display:flex;align-items:center;justify-content:center;font-size:9px;color:#38bdf8;letter-spacing:0.5px;font-family:'Courier New',monospace;font-weight:bold}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="tb-left">
+    <span class="tb-section">READER MAP</span>
+    <span class="tb-slash">//</span>
+    <span class="tb-section">OBSERVER</span>
+    <span class="tb-slash">/</span>
+    <span class="tb-section" id="tb-creator" style="color:#ffffff;font-weight:bold">HASYAMO</span>
+  </div>
+  <div class="tb-right">
+    <span class="tb-badge" id="tb-snapshot">SNAPSHOT</span>
+    <span class="tb-sep">·</span>
+    <span class="tb-label">DATE</span><span class="tb-val" id="tb-date"></span>
+    <span class="tb-sep">·</span>
+    <span class="tb-label">TIME</span><span class="tb-val" id="tb-time"></span>
+    <span class="tb-sep">·</span>
+    <span class="tb-label">NODES</span><span class="tb-val" id="tb-nodes">—</span>
+    <span class="tb-badge">3D NETWORK</span>
+  </div>
+</div>
+<div id="ui">
+  <div id="stats"></div>
+  <div class="section">
+    <div class="section-title">レイヤー表示</div>
+    <div class="layer-group-title">全期間</div>
+    <div id="layer-btns-base"></div>
+    <div class="layer-group-title" id="layer-monthly-title" style="display:none;margin-top:8px">今月</div>
+    <div id="layer-btns-monthly" style="display:none"></div>
+  </div>
+  <div class="section">
+    <div class="section-title">期間フィルター</div>
+    <button class="month-btn all" onclick="setMonth(null)">ALL — 全期間</button>
+    <div id="month-btns"></div>
+    <label class="layer-btn" id="show-all-monthly-label" style="margin-top:4px;display:none">
+      <input type="checkbox" id="show-all-monthly"> 反応1件以上も表示
+    </label>
+  </div>
+  <div class="section">
+    <div class="section-title">表示オプション</div>
+    <label class="layer-btn" id="show-edges-label">
+      <input type="checkbox" id="show-edges"> 関係線を表示
+    </label>
+  </div>
+  <div class="section">
+    <div class="section-title">凡例</div>
+    <div style="font-size:9px;color:#444;line-height:1.9">
+      <div>距離 = 関係スコアの高さ</div>
+      <div>高さ = 関係の長さ</div>
+      <div>大きさ = コメント数</div>
+      <div>透明度 = 直近の活動</div>
+    </div>
+  </div>
+</div>
+<canvas id="canvas"></canvas>
+<div id="icon-layer"></div>
+<div id="popup">
+  <div id="popup-inner">
+    <span id="popup-close">✕</span>
+    <div id="popup-header">
+      <img id="popup-icon" src="" alt="" style="display:none">
+      <div id="popup-header-text">
+        <span id="popup-badge"></span>
+        <span id="popup-name"></span>
+      </div>
+    </div>
+    <div id="popup-text"></div>
+    <div id="popup-hint">[ TAP TO CLOSE ]</div>
+  </div>
+</div>
+<div id="controls">
+  <div class="ctrl-group">
+    <div style="width:38px"></div>
+    <button class="ctrl-btn" id="btn-up">∧</button>
+    <div style="width:38px"></div>
+  </div>
+  <div class="ctrl-group">
+    <button class="ctrl-btn" id="btn-left">〈</button>
+    <div class="ctrl-center">回転</div>
+    <button class="ctrl-btn" id="btn-right">〉</button>
+  </div>
+  <div class="ctrl-group">
+    <div style="width:38px"></div>
+    <button class="ctrl-btn" id="btn-down">∨</button>
+    <div style="width:38px"></div>
+  </div>
+  <div class="ctrl-group" style="margin-top:3px">
+    <button class="ctrl-btn" id="btn-zoomout">－</button>
+    <div class="ctrl-center">zoom</div>
+    <button class="ctrl-btn" id="btn-zoomin">＋</button>
+  </div>
+</div>
+
+<script>
+const PROXY_URL = 'https://falling-mouse-736b.hasyamo.workers.dev/';
+const urlname = new URLSearchParams(location.search).get('user') || 'hasyamo';
+let RAW = null;
+async function loadData(){
+  const res = await fetch(`data/${urlname}/relation_graph.json?t=${Date.now()}`);
+  RAW = await res.json();
+  init();
+}
+loadData();
+function init(){
+
+const TYPE_META = {
+  "core":             {"color": "#fbbf24", "label": "よく反応してくれる人",    "group": "base"},
+  "commenter":        {"color": "#4affa0", "label": "コメント常連",            "group": "base"},
+  "active_commenter": {"color": "#86efac", "label": "コメントをくれた人",      "group": "base"},
+  "regular":          {"color": "#a78bfa", "label": "継続して読んでくれる人",  "group": "base"},
+  "newcomer":         {"color": "#ffd166", "label": "最近来てくれた人",        "group": "base"},
+  "dormant":          {"color": "#334155", "label": "しばらく静かな人",        "group": "base"},
+  "monthly_core":     {"color": "#fbbf24", "label": "反応多め",               "group": "monthly"},
+  "monthly_commenter":{"color": "#4affa0", "label": "コメントあり",            "group": "monthly"},
+  "monthly_active":   {"color": "#f472b6", "label": "スキ多め",               "group": "monthly"},
+  "monthly_light":    {"color": "#334155", "label": "ライト反応",              "group": "monthly"},
+};
+
+const MONTH_LABELS = {"2025-12": "2025年12月", "2026-01": "2026年1月", "2026-02": "2026年2月", "2026-03": "2026年3月", "2026-04": "2026年4月", "2026-05": "2026年5月", "2026-06": "2026年6月"};
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const iconLayer = document.getElementById('icon-layer');
+let W, H;
+const PANEL_L=200, PANEL_R=0;
+function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; }
+resize(); window.addEventListener('resize',resize);
+
+// ===== プロフィール画像 =====
+const profileCache = {};
+
+// 同時リクエスト数を制限する並列キュー（ブラウザのリソース枯渇・proxyのレート制限対策）
+const ICON_CONCURRENCY = 20;
+let _iconActive = 0;
+const _iconQueue = [];
+function _iconPump(){
+  while(_iconActive < ICON_CONCURRENCY && _iconQueue.length){
+    const job = _iconQueue.shift();
+    _iconActive++;
+    job().finally(()=>{ _iconActive--; _iconPump(); });
+  }
+}
+function _fetchIcon(urlname){
+  return new Promise(resolve=>{
+    _iconQueue.push(async ()=>{
+      try{
+        const r=await fetch(`${PROXY_URL}?id=${encodeURIComponent(urlname)}`);
+        if(r.ok){ const d=await r.json(); resolve(d?.data?.profileImageUrl||null); return; }
+      }catch(e){}
+      resolve(null);
+    });
+    _iconPump();
+  });
+}
+
+async function getProfileImageUrl(urlname){
+  if(profileCache[urlname]!==undefined) return profileCache[urlname];
+  const p = _fetchIcon(urlname);
+  profileCache[urlname] = p;          // Promiseをキャッシュ（同一urlnameの重複fetch防止）
+  const u = await p;
+  profileCache[urlname] = u;          // 解決値で上書き
+  return u;
+}
+
+// ===== 表示オプション =====
+let showEdges=false;
+let hoveredNode=null;
+document.getElementById('show-edges').onchange=e=>{ showEdges=e.target.checked; };
+
+// ===== 月フィルター =====
+let currentMonth=null, showAllMonthly=false;
+{
+  const s=RAW.stats;
+  document.getElementById('stats').innerHTML=
+    `<div class="stat"><span>観測読者数</span><span><b>${s.total_readers}</b> 人</span></div>
+<div class="stat"><span>総スキ</span><span><b>${s.total_likes}</b></span></div>
+<div class="stat"><span>総コメント</span><span><b>${s.total_comments}</b></span></div>`;
+}
+{
+  const cont=document.getElementById('month-btns');
+  const months=[...RAW.months].reverse();
+  const SHOW=6;
+  let expanded=false;
+  function renderMonths(){
+    cont.innerHTML='';
+    const visible=expanded?months:months.slice(0,SHOW);
+    for(const m of visible){
+      const b=document.createElement('button');
+      b.className='month-btn'; b.dataset.month=m;
+      b.textContent=MONTH_LABELS[m]||m;
+      b.onclick=()=>setMonth(m);
+      cont.appendChild(b);
+    }
+    if(months.length>SHOW){
+      const more=document.createElement('button');
+      more.className='month-btn';
+      more.style.color='#2a5070';
+      more.style.fontSize='11px';
+      more.textContent=expanded?'▲ 折りたたむ':`▼ さらに${months.length-SHOW}ヶ月`;
+      more.onclick=()=>{expanded=!expanded;renderMonths();};
+      cont.appendChild(more);
+    }
+  }
+  renderMonths();
+}
+document.getElementById('show-all-monthly').onchange=e=>{
+  showAllMonthly=e.target.checked; updateVisibility();
+};
+window.setMonth=function setMonth(m){
+  currentMonth=m;
+  document.querySelectorAll('.month-btn').forEach(b=>
+    b.classList.toggle('active', m===null?b.classList.contains('all'):b.dataset.month===m));
+  document.getElementById('show-all-monthly-label').style.display=m?'flex':'none';
+  updateVisibility();
+  updateMonthlyLayerVisibility();
+}
+
+// ===== レイヤー =====
+const layerVisible={core:true,commenter:true,active_commenter:true,regular:true,newcomer:true,dormant:false,
+  monthly_core:true,monthly_commenter:true,monthly_active:true,monthly_light:true};
+
+function buildLayerBtn(type, meta, cont){
+  const btn=document.createElement('div');
+  btn.className='layer-btn'+(layerVisible[type]?' on':'');
+  btn.dataset.layerType=type;
+  const dot=document.createElement('span'); dot.className='type-dot';
+  dot.style.background=layerVisible[type]?meta.color:'#1a3050';
+  dot.style.transition='background 0.15s';
+  btn.appendChild(dot);
+  btn.appendChild(document.createTextNode(meta.label));
+  const count=document.createElement('span'); count.className='layer-count';
+  count.dataset.type=type;
+  btn.appendChild(count);
+  btn.onclick=()=>{
+    layerVisible[type]=!layerVisible[type];
+    btn.classList.toggle('on',layerVisible[type]);
+    dot.style.background=layerVisible[type]?meta.color:'#1a3050';
+    updateVisibility();
+  };
+  cont.appendChild(btn);
+}
+
+const contBase=document.getElementById('layer-btns-base');
+const contMonthly=document.getElementById('layer-btns-monthly');
+for(const [type,meta] of Object.entries(TYPE_META)){
+  if(meta.group==='base') buildLayerBtn(type,meta,contBase);
+  else if(meta.group==='monthly') buildLayerBtn(type,meta,contMonthly);
+}
+
+function updateMonthlyLayerVisibility(){
+  const show=!!currentMonth;
+  const title=document.getElementById('layer-monthly-title');
+  title.style.display=show?'':'none';
+  if(show) title.textContent=MONTH_LABELS[currentMonth]||currentMonth;
+  contMonthly.style.display=show?'':'none';
+}
+
+// ===== ノード初期化 =====
+function strHash(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return h>>>0;}
+
+const maxScore=Math.max(...RAW.nodes.map(n=>n.score),1);
+const maxMonths=Math.max(...RAW.nodes.map(n=>n.months_since_first),1);
+
+function calcXYZ(urlname, score, months_since){
+  const h=strHash(urlname);
+  const angle=(h%10000)/10000*2*Math.PI;
+  const dist=Math.max(0.05, Math.min(0.88, 1.0-Math.pow(score/maxScore,0.5)));
+  return {
+    x: 0.5+dist*0.45*Math.cos(angle),
+    y: 0.1+(months_since/maxMonths)*0.8,
+    z: 0.5+dist*0.45*Math.sin(angle),
+  };
+}
+
+let selectedNode=null;
+let nodes=RAW.nodes.map(r=>{
+  const pos=calcXYZ(r.urlname, r.score, r.months_since_first);
+  return {...r, ...pos, _el:null, _hasIcon:false, _visible:true,
+    _cur_score:r.score, _opacity: r.recent_active?1.0:0.35};
+});
+
+// DOM生成
+nodes.forEach(n=>{
+  const meta=TYPE_META[n._display_utype||n.utype]||TYPE_META.regular;
+  const el=document.createElement('div');
+  el.className='node-el';
+  el.style.background=meta.color+'44';
+  el.style.borderColor=meta.color+'88';
+  el.style.display='flex';el.style.alignItems='center';el.style.justifyContent='center';
+  el.style.fontSize='9px';el.style.color=meta.color;el.style.overflow='hidden';
+  el.textContent=n.name.slice(0,2);
+  el.title=n.name;
+  el.onmouseenter=()=>{ hoveredNode=n; };
+  el.onmouseleave=()=>{ if(hoveredNode===n) hoveredNode=null; };
+  el.onclick=e=>{ const r=el.getBoundingClientRect(); selectNode(n, r.right, r.top+r.height/2); e.stopPropagation(); };
+  iconLayer.appendChild(el);
+  n._el=el;
+  const _iconPromise = n.icon ? Promise.resolve(n.icon) : getProfileImageUrl(n.urlname);
+  _iconPromise.then(url=>{
+    if(!url) return;
+    const img=document.createElement('img');
+    img.className='node-el';
+    img.src=url; img.title=n.name;
+    img.style.borderColor=(TYPE_META[n._display_utype||n.utype]||TYPE_META.regular).color+'aa';
+    img.onmouseenter=()=>{ hoveredNode=n; };
+    img.onmouseleave=()=>{ if(hoveredNode===n) hoveredNode=null; };
+    img.onclick=e=>{ const r=img.getBoundingClientRect(); selectNode(n, r.right, r.top+r.height/2); e.stopPropagation(); };
+    iconLayer.replaceChild(img,el);
+    n._el=img; n._hasIcon=true;
+  });
+});
+
+// ===== 表示判定 =====
+function calcMonthlyTags(ml, mc, ms){
+  const tags=[];
+  if(ms>=10||mc>=2) tags.push('monthly_core');
+  if(mc>=1)         tags.push('monthly_commenter');
+  if(ml>=3)         tags.push('monthly_active');
+  if(tags.length===0 && (ml>=1||mc>=1)) tags.push('monthly_light');
+  return tags;
+}
+
+function isVisible(n){
+  if(!currentMonth){
+    if(n.score<5) return false;
+    // 全期間もタグ（非排他）で判定
+    const tags=n.tags||[];
+    return tags.some(t=>layerVisible[t]!==false);
+  }
+  // 月フィルター時：まず月内スコア条件
+  const mo=n.monthly[currentMonth]||{};
+  const ml=mo.likes||0, mc=mo.comments||0;
+  const ms=ml+mc*5;
+  const passScore = showAllMonthly ? (ml>=1||mc>=1) : (ms>=3||mc>=1||(n.score>=10&&ml>=1));
+  if(!passScore) return false;
+  // レイヤー判定はタグ（非排他）で行う
+  const tags=calcMonthlyTags(ml,mc,ms);
+  return tags.some(t=>layerVisible[t]!==false);
+}
+
+function updateVisibility(){
+  const maxMs=currentMonth
+    ? Math.max(...nodes.map(n=>{ const mo=n.monthly[currentMonth]||{}; return (mo.likes||0)+(mo.comments||0)*5; }),1)
+    : maxScore;
+  nodes.forEach(n=>{
+    n._visible=isVisible(n);
+    if(currentMonth){
+      const mo=n.monthly[currentMonth]||{};
+      const ml=mo.likes||0, mc=mo.comments||0;
+      const ms=ml+mc*5;
+      n._cur_score=ms;
+      // 代表分類（排他）
+      if(ms>=10||mc>=2)      n._display_utype='monthly_core';
+      else if(mc>=1)         n._display_utype='monthly_commenter';
+      else if(ml>=3)         n._display_utype='monthly_active';
+      else                   n._display_utype='monthly_light';
+      // タグ（非排他、レイヤー判定用）
+      n._monthly_tags=calcMonthlyTags(ml,mc,ms);
+    } else {
+      n._cur_score=n.score;
+      n._display_utype=n.utype;
+      n._monthly_tags=null;
+    }
+    const pos=calcXYZ(n.urlname, Math.max(n._cur_score,1), n.months_since_first);
+    n.x=pos.x; n.y=pos.y; n.z=pos.z;
+    if(n._el) n._el.style.display=n._visible?'':'none';
+    // ノードの枠色を月内タイプで更新
+    if(n._el){
+      const m=TYPE_META[n._display_utype]||TYPE_META.regular;
+      n._el.style.borderColor=m.color+(n===selectedNode?'ff':'88');
+    }
+  });
+  // レイヤーごとのノード数を更新
+  // カウント = そのレイヤーをONにしたときに実際に表示される人数
+  // （レイヤー自身のON/OFFは無視するが、スコア足切り等の表示条件は反映）
+  const typeCounts={};
+  nodes.forEach(n=>{
+    // 全期間タグ：月フィルターの有無に関係なく常にカウント（score>=5の人のtagsを集計）
+    if(n.score>=5 && n.tags){
+      n.tags.forEach(t=>{ typeCounts[t]=(typeCounts[t]||0)+1; });
+    }
+    // 今月タイプ：月フィルター時のみ、月内スコア条件を満たす人のタグを集計
+    if(currentMonth){
+      const mo=n.monthly[currentMonth]||{};
+      const ml=mo.likes||0, mc=mo.comments||0;
+      const ms=ml+mc*5;
+      const passScore = showAllMonthly ? (ml>=1||mc>=1) : (ms>=3||mc>=1||(n.score>=10&&ml>=1));
+      if(passScore && n._monthly_tags){
+        n._monthly_tags.forEach(t=>{ typeCounts[t]=(typeCounts[t]||0)+1; });
+      }
+    }
+  });
+  document.querySelectorAll('[data-layer-type]').forEach(btn=>{
+    const t=btn.dataset.layerType;
+    const meta=TYPE_META[t];
+    const c=typeCounts[t]||0;
+    btn.querySelector('.layer-count').textContent=c;
+    // 今月レイヤーは月フィルター時のみ表示、それ以外は常に表示
+    btn.style.display=(meta.group==='monthly'&&!currentMonth)?'none':'';
+  });
+}
+// 直近月をデフォルト選択
+const latestMonth = RAW.months[RAW.months.length-1];
+if(latestMonth) setMonth(latestMonth);
+
+// ===== 3D =====
+let rotX=0.25,rotY=0.4,zoom=1.0,drag=false,lastMX=0,lastMY=0;
+canvas.addEventListener('mousedown',e=>{drag=true;lastMX=e.clientX;lastMY=e.clientY;});
+window.addEventListener('mouseup',()=>drag=false);
+window.addEventListener('mousemove',e=>{
+  if(!drag)return; rotY+=(e.clientX-lastMX)*0.008; rotX-=(e.clientY-lastMY)*0.008;
+  rotX=Math.max(-1.0,Math.min(1.0,rotX)); lastMX=e.clientX;lastMY=e.clientY;
+});
+canvas.addEventListener('wheel',e=>{zoom*=e.deltaY>0?0.93:1.07;zoom=Math.max(0.3,Math.min(5,zoom));e.preventDefault();},{passive:false});
+
+function project(x,y,z){
+  const cx=x-0.5,cy=y-0.5,cz=z-0.5;
+  const rx=cx*Math.cos(rotY)-cz*Math.sin(rotY);
+  const rz=cx*Math.sin(rotY)+cz*Math.cos(rotY);
+  const ry2=cy*Math.cos(rotX)-rz*Math.sin(rotX);
+  const rz2=cy*Math.sin(rotX)+rz*Math.cos(rotX);
+  const fov=2.2*zoom, cw=W-PANEL_L-PANEL_R;
+  return {sx:PANEL_L+cw/2+rx*fov*Math.min(cw,H), sy:H/2-ry2*fov*Math.min(cw,H), depth:rz2};
+}
+
+// ===== 選択 =====
+const popup=document.getElementById('popup');
+
+function closePopup(){
+  popup.style.display='none';
+  selectedNode=null;
+  document.querySelectorAll('.node-el').forEach(el=>el.classList.remove('selected'));
+}
+document.getElementById('popup-close').onclick=closePopup;
+canvas.onclick=e=>{ if(e.target===canvas) closePopup(); };
+
+function selectNode(n, screenX, screenY){
+  selectedNode=n;
+  document.querySelectorAll('.node-el').forEach(el=>el.classList.remove('selected'));
+  if(n._el) n._el.classList.add('selected');
+  showPopup(n, screenX, screenY);
+}
+
+function showPopup(n, sx, sy){
+  const meta = TYPE_META[n._display_utype||n.utype]||TYPE_META.regular;
+
+  // アイコン
+  const icon = document.getElementById('popup-icon');
+  if(n._hasIcon && n._el?.src){ icon.src=n._el.src; icon.style.display='block'; }
+  else icon.style.display='none';
+
+  // バッジ・名前
+  const badge = document.getElementById('popup-badge');
+  const displayMeta = TYPE_META[n._display_utype||n.utype]||TYPE_META.regular;
+  const baseMeta = TYPE_META[n.utype]||TYPE_META.regular;
+  if(currentMonth && n._display_utype !== n.utype){
+    badge.textContent = `// ${displayMeta.label} //  （全期間：${baseMeta.label}）`;
+  } else {
+    badge.textContent = '// '+baseMeta.label+' //';
+  }
+  badge.style.color = displayMeta.color;
+  document.getElementById('popup-name').textContent = n.name;
+
+  // ポップアップ本文
+  const status = n.recent_active ? '● ACTIVE' : '○ SILENT';
+  const statusCls = n.recent_active ? 'active' : 'silent';
+  let monthRow = '';
+  if(currentMonth){
+    const md = n.monthly[currentMonth]||{};
+    monthRow = `<div class="popup-row"><span class="popup-lbl">この月のスキ</span><span class="popup-val">${md.likes||0}</span></div>
+<div class="popup-row"><span class="popup-lbl">この月のコメント</span><span class="popup-val">${md.comments||0}</span></div>`;
+  }
+  document.getElementById('popup-text').innerHTML =
+`<div class="popup-row"><span class="popup-lbl">スキ</span><span class="popup-val">${n.like_count}</span></div>
+<div class="popup-row"><span class="popup-lbl">コメント</span><span class="popup-val">${n.comment_count}</span></div>
+<div class="popup-row"><span class="popup-lbl">関係スコア</span><span class="popup-val">${n.score}</span></div>
+<div class="popup-row" style="border-bottom:none"><span class="popup-lbl">フォロワー</span><span class="popup-val">${n.follower_count.toLocaleString()}</span></div>
+<div class="popup-divider"></div>
+<div class="popup-row"><span class="popup-lbl">初反応</span><span class="popup-val">${n.first_activity}（${n.months_since_first}ヶ月前）</span></div>
+<div class="popup-row"><span class="popup-lbl">直近30日</span><span class="popup-val ${statusCls}">${status}</span></div>
+${monthRow}
+<a class="popup-link" onclick="window.open('https://note.com/${n.urlname}','_blank')">▶ note.com/${n.urlname}</a>`;
+
+  // 位置：ノードの右隣、はみ出すなら左
+  popup.style.display = 'block';
+  const pw = popup.offsetWidth||360, ph = popup.offsetHeight||180;
+  let px = sx+16, py = sy - ph/2;
+  if(px+pw > W-16) px = sx-pw-16;
+  if(py < 10) py = 10;
+  if(py+ph > H-10) py = H-ph-10;
+  popup.style.left = px+'px';
+  popup.style.top  = py+'px';
+}
+
+// ===== 中心アイコン =====
+const centerEl=document.createElement('img');
+centerEl.className='node-el';
+centerEl.style.width=centerEl.style.height='48px';
+centerEl.style.border='3px solid #fff';
+centerEl.style.boxShadow='0 0 16px #7aecff44';
+centerEl.style.zIndex='200';
+centerEl.style.pointerEvents='none';
+iconLayer.appendChild(centerEl);
+getProfileImageUrl(urlname).then(url=>{if(url)centerEl.src=url;});
+
+// ===== 描画 =====
+function nodeRadius(n,depth){
+  const base=8+Math.min(n.comment_count*2,16);
+  return Math.max(5, base*(1.0-depth*0.45));
+}
+
+function frame(){
+  requestAnimationFrame(frame);
+  ctx.clearRect(0,0,W,H);
+  ctx.setLineDash([]);
+  if(!drag) rotY+=0.0002;
+
+  const center=project(0.5,0.5,0.5);
+  const sorted=nodes.map(n=>({n,...project(n.x,n.y,n.z)})).sort((a,b)=>a.depth-b.depth);
+
+  // 距離リング（中心から薄い同心円）
+  {
+    const {sx,sy}=center;
+    const cw=W-PANEL_L-PANEL_R;
+    const ringDists=[0.25,0.5,0.75]; // 近・中・遠
+    const ringLabels=['よく反応','反応あり','ライト'];
+    ringDists.forEach((d,i)=>{
+      const r=d*0.45*Math.min(cw,H)*2.2*zoom;
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(56,189,248,${0.06-i*0.015})`;
+      ctx.lineWidth=1; ctx.setLineDash([4,8]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='rgba(56,189,248,0.18)';
+      ctx.font='9px "Courier New",monospace';
+      ctx.fillText(ringLabels[i], sx+r+4, sy);
+    });
+  }
+
+  // エッジ（全体表示ONまたはホバー・選択時のみ）
+  for(const {n,sx,sy} of sorted){
+    if(!n._visible) continue;
+    const isSelected = n===selectedNode;
+    const isHovered  = n===hoveredNode;
+    if(!showEdges && !isSelected && !isHovered) continue;
+    const meta=TYPE_META[n._display_utype||n.utype]||TYPE_META.regular;
+    let alpha, lineWidth;
+    if(isSelected){ alpha=0.9; lineWidth=1.5; }
+    else if(isHovered){ alpha=0.6; lineWidth=1.0; }
+    else { alpha=Math.max(0.08,(n._cur_score/maxScore)*0.5)*n._opacity; lineWidth=0.6; }
+    ctx.beginPath(); ctx.moveTo(center.sx,center.sy); ctx.lineTo(sx,sy);
+    ctx.strokeStyle=meta.color+Math.round(alpha*255).toString(16).padStart(2,'0');
+    ctx.lineWidth=lineWidth; ctx.stroke();
+  }
+
+  // ノード
+  for(const {n,sx,sy,depth} of sorted){
+    const el=n._el;
+    if(!el) continue;
+    if(!n._visible){el.style.display='none';continue;}
+    const r=nodeRadius(n,depth);
+    el.style.display='';
+    el.style.left=(sx-PANEL_L)+'px'; el.style.top=sy+'px';
+    el.style.width=el.style.height=r*2+'px';
+    el.style.zIndex=Math.round((1-depth)*100);
+    el.style.opacity=n._opacity;
+    const meta=TYPE_META[n._display_utype||n.utype]||TYPE_META.regular;
+    if(!n._hasIcon) el.style.borderColor=meta.color+'aa';
+    else el.style.borderColor=meta.color+(n===selectedNode?'ff':'88');
+  }
+
+  // 中心
+  {
+    const {sx,sy}=center;
+    ctx.beginPath(); ctx.arc(sx,sy,32,0,Math.PI*2);
+    ctx.fillStyle='#7aecff0f'; ctx.fill();
+    centerEl.style.left=(sx-PANEL_L)+'px'; centerEl.style.top=sy+'px';
+    ctx.fillStyle='#7aecff44'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(urlname,sx,sy+32); ctx.textAlign='left';
+  }
+
+  // カメラ状態オーバーレイ
+  const ox=PANEL_L+12, oy=48;
+  ctx.font='9px "Courier New",monospace';
+  ctx.strokeStyle='#38bdf822'; ctx.lineWidth=1;
+  ctx.strokeRect(ox, oy-14, 210, 36);
+  ctx.fillStyle='#020817cc';
+  ctx.fillRect(ox, oy-14, 210, 36);
+  ctx.fillStyle='#38bdf8aa';
+  ctx.fillText('ROT', ox+8, oy);
+  ctx.fillText('ZOOM', ox+8, oy+14);
+  ctx.fillStyle='#ffffff';
+  ctx.fillText(`${rotX.toFixed(3)},  ${rotY.toFixed(3)}`, ox+48, oy);
+  ctx.fillText(`${zoom.toFixed(2)}x`, ox+48, oy+14);
+}
+frame();
+
+// ===== コントロール =====
+const STEP_ROT=0.08, STEP_ZOOM=0.15;
+let pressInterval=null;
+function applyControl(id){
+  if(id==='btn-left') rotY-=STEP_ROT;
+  if(id==='btn-right') rotY+=STEP_ROT;
+  if(id==='btn-up') rotX+=STEP_ROT;
+  if(id==='btn-down') rotX-=STEP_ROT;
+  if(id==='btn-zoomin') zoom=Math.min(5,zoom*(1+STEP_ZOOM));
+  if(id==='btn-zoomout') zoom=Math.max(0.3,zoom*(1-STEP_ZOOM));
+  rotX=Math.max(-1.0,Math.min(1.0,rotX));
+}
+document.querySelectorAll('.ctrl-btn').forEach(btn=>{
+  const start=()=>{applyControl(btn.id);pressInterval=setInterval(()=>applyControl(btn.id),80);};
+  const stop=()=>clearInterval(pressInterval);
+  btn.addEventListener('mousedown',start);
+  btn.addEventListener('touchstart',e=>{e.preventDefault();start();},{passive:false});
+  window.addEventListener('mouseup',stop);
+  window.addEventListener('touchend',stop);
+});
+  // topbar ノード数
+  document.getElementById('tb-nodes').textContent=String(nodes.length).padStart(3,'0');
+  document.getElementById('tb-creator').textContent=urlname.toUpperCase();
+  document.title=`${urlname} — READER MAP`;
+} // end init()
+
+// topbar 時刻
+function updateClock(){
+  const now=new Date();
+  const d=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  const t=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  document.getElementById('tb-date').textContent=d;
+  document.getElementById('tb-time').textContent=t;
+}
+updateClock();
+setInterval(updateClock,1000);
+</script>
+</body>
+</html>

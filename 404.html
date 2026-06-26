@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script>
+  // GitHub Pages SPA routing: /note-fan-board/username/ → /note-fan-board/?user=username
+  var path = window.location.pathname;
+  var repo = '/note-fan-board';
+  if (path.startsWith(repo + '/') && path !== repo + '/' && path !== repo + '/index.html') {
+    var parts = path.replace(repo + '/', '').replace(/\/$/, '').split('/');
+    var user = parts[0];
+    if (user && !user.includes('.')) {
+      window.location.replace(repo + '/?user=' + user + window.location.hash);
+    }
+  }
+</script>
+</head>
+<body></body>
+</html>
