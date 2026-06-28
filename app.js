@@ -1977,7 +1977,7 @@ async function init() {
   checkVersionUpdate();
 }
 
-const APP_VERSION = '0.8.1';
+const APP_VERSION = '0.9.0';
 const VERSION_KEY = 'fanboard_version';
 
 async function checkVersionUpdate() {
@@ -2015,5 +2015,368 @@ async function checkVersionUpdate() {
     modal.style.display = 'none';
   }, { once: true });
 }
+
+// ===== AI Analysis Pack (analysis_pack_export.py を直近30日版で移植) =====
+// 命名・列順は Python 正本を踏襲。
+function _ti(x) { const n = parseInt(x, 10); return isNaN(n) ? 0 : n; }
+function _d10(s) { return (s || '').slice(0, 10); }
+function _parseDt(dt) {
+  if (!dt) return null;
+  const t = Date.parse(dt.replace(/Z$/, '+00:00'));
+  return isNaN(t) ? null : t;
+}
+function _round1(v) { return Math.round(v * 10) / 10; }
+function _median(vals) {
+  const a = vals.filter(v => v != null).slice().sort((x, y) => x - y);
+  if (!a.length) return null;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+// 課金記事マーカー判定（直近30日の対象記事だけ note 公開APIを直列で叩いて price を取る）
+// note.com はCORSヘッダを返さないため、既存の CF Worker (PROXY_URL) 経由で叩く。
+// Worker側で /api/v3/notes/ を ALLOWED_PATHS に含めてあり、CORSヘッダも付与される。
+// fetch 失敗時は null を返す → '?' マーカーに落ちる
+async function _fetchPaidMap(noteKeys) {
+  const result = {};
+  for (const key of noteKeys) {
+    let price = null;
+    try {
+      const url = `${PROXY_URL}?path=${encodeURIComponent('/api/v3/notes/' + key)}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (res.ok) {
+        const j = await res.json();
+        const p = j && j.data ? j.data.price : null;
+        if (typeof p === 'number') price = p;
+      } else {
+        console.warn('[aiPack] price fetch !ok', key, res.status);
+      }
+    } catch (e) {
+      console.warn('[aiPack] price fetch failed', key, e && e.message);
+    }
+    result[key] = price; // null = 失敗、number = 取得成功
+    await new Promise(r => setTimeout(r, 600));
+  }
+  return result;
+}
+
+async function buildAnalysisPack() {
+  // データソース：loadData/loadMagazinesで揃った既存変数
+  const arts = {};
+  for (const a of articlesData) arts[a.key] = a;
+  const likes = (likesData || []).slice();
+  const followers = (followersData || [])
+    .map(r => [r.date, _ti(r.follower_count)])
+    .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  const mag = magazineEvents || [];
+
+  // 最新日（likes基準。Python正本と同じ）
+  let dataLatest = '';
+  for (const l of likes) {
+    const d = _d10(l.liked_at);
+    if (d > dataLatest) dataLatest = d;
+  }
+  if (!dataLatest) return '（データがありません）';
+
+  // 対象月（データ最新日のその月。py: month）
+  const month = dataLatest.slice(0, 7);
+
+  // 直近30日の境界（②③共通。py: cutd）
+  const latestMs = Date.parse(dataLatest + 'T23:59:59+09:00');
+  const cutMs = latestMs - 30 * 86400 * 1000;
+  const cutDate = new Date(cutMs);
+  const pad = n => String(n).padStart(2, '0');
+  const cutd = `${cutDate.getFullYear()}-${pad(cutDate.getMonth() + 1)}-${pad(cutDate.getDate())}`;
+
+  // 公開当時フォロワー数（Python: fol_at）
+  function folAt(date) {
+    let v = null;
+    for (const [dt, fc] of followers) {
+      if (dt <= date) v = fc; else break;
+    }
+    return v;
+  }
+
+  // ユーザー単位の初反応・最終反応・通算
+  const firstSeen = {}, lastSeen = {}, nameOf = {}, cnt = {};
+  const sortedLikes = likes.slice().sort((a, b) => a.liked_at < b.liked_at ? -1 : a.liked_at > b.liked_at ? 1 : 0);
+  for (const l of sortedLikes) {
+    const u = l.like_user_id;
+    if (!u) continue;
+    if (!(u in firstSeen)) firstSeen[u] = _d10(l.liked_at);
+    lastSeen[u] = _d10(l.liked_at);
+    nameOf[u] = l.like_username || l.like_user_urlname || u;
+    cnt[u] = (cnt[u] || 0) + 1;
+  }
+
+  // 記事別 likes / mag
+  const likesByArt = {};
+  for (const l of likes) {
+    (likesByArt[l.note_key] = likesByArt[l.note_key] || []).push(l);
+  }
+  const magByArt = {};
+  for (const m of mag) {
+    if (m.event_type && m.event_type !== 'added') continue;
+    magByArt[m.note_key] = (magByArt[m.note_key] || 0) + 1;
+  }
+
+  // py: month_rows（指定月に公開された記事）
+  function monthRows(mo) {
+    const rows = [];
+    for (const k of Object.keys(arts)) {
+      const a = arts[k];
+      const pubDate = _d10(a.published_at);
+      if (!pubDate || pubDate.slice(0, 7) !== mo) continue;
+      const lk = _ti(a.like_count), cm = _ti(a.comment_count);
+      const fol = folAt(pubDate);
+      const pMs = _parseDt(a.published_at);
+      let v24 = 0;
+      if (pMs != null) {
+        for (const l of (likesByArt[k] || [])) {
+          const lt = _parseDt(l.liked_at);
+          if (lt != null && (lt - pMs) >= 0 && (lt - pMs) <= 86400 * 1000) v24++;
+        }
+      }
+      const shinki = (likesByArt[k] || []).filter(l => firstSeen[l.like_user_id] === _d10(l.liked_at)).length;
+      const totalLikers = (likesByArt[k] || []).length;
+      const depth = lk + cm * 5 + (magByArt[k] || 0) * 10;
+      const eta = (fol && fol > 0) ? (lk / fol * 100) : null;
+      rows.push({
+        title: a.title || '',  // フルタイトル（切らない・記事番号に依存しない＝汎用）
+        pubd: pubDate,
+        lk, cm,
+        mag: magByArt[k] || 0,
+        fol,
+        eta,
+        v24,
+        shinki,
+        joren: totalLikers - shinki,
+        depth,
+      });
+    }
+    rows.sort((a, b) => a.pubd < b.pubd ? -1 : a.pubd > b.pubd ? 1 : 0);
+    return rows;
+  }
+
+  const cur = monthRows(month);
+
+  // 課金記事マーカー：①の表に出す記事だけ price を取得（直列・600ms sleep）
+  // cur 内の各行に { ...., noteKey } を持たせるため、キーを別途確保
+  const curKeys = [];
+  for (const k of Object.keys(arts)) {
+    const a = arts[k];
+    const pubDate = _d10(a.published_at);
+    if (pubDate && pubDate.slice(0, 7) === month) curKeys.push(k);
+  }
+  const paidMap = await _fetchPaidMap(curKeys);
+  // cur 各行に対応する key を紐付け直す（titleが重複しても確実に対応）
+  // マーカー：💎（課金）／🆕（公開後72h未満）／?（fetch失敗）。両方該当なら 💎🆕 の順
+  const FRESH_MS = 72 * 3600 * 1000;
+  for (const r of cur) {
+    const k = Object.keys(arts).find(kk =>
+      arts[kk].title === r.title && _d10(arts[kk].published_at) === r.pubd
+    );
+    r._key = k;
+    const p = k != null ? paidMap[k] : null;
+    const paidMark = p == null ? '?' : (p > 0 ? '💎' : '');
+    const pubMs = k != null ? _parseDt(arts[k].published_at) : null;
+    const isFresh = pubMs != null && (latestMs - pubMs) < FRESH_MS;
+    const freshMark = isFresh ? '🆕' : '';
+    const combined = `${paidMark}${freshMark}`;
+    r._marker = combined ? `${combined} ` : '';
+  }
+
+  // ② コホート：初反応の月 → 直近30日の再反応＝定着（py: recent_actors 経由）
+  const recentActors = new Set();
+  for (const l of likes) {
+    if (_d10(l.liked_at) >= cutd && l.like_user_id) recentActors.add(l.like_user_id);
+  }
+  const cohortMap = {};
+  for (const u of Object.keys(firstSeen)) {
+    const fm = firstSeen[u].slice(0, 7);
+    if (!cohortMap[fm]) cohortMap[fm] = { total: 0, active: 0 };
+    cohortMap[fm].total++;
+    if (recentActors.has(u)) cohortMap[fm].active++;
+  }
+  const cohortKeys = Object.keys(cohortMap).sort();
+
+  // ③ churn：通算2回以上 かつ 直近30日無反応（上位15件）
+  const churn = [];
+  for (const u of Object.keys(cnt)) {
+    if (cnt[u] >= 2 && lastSeen[u] < cutd) {
+      churn.push([nameOf[u], cnt[u], lastSeen[u]]);
+    }
+  }
+  churn.sort((a, b) => b[1] - a[1]);
+
+  // ===== Markdown 生成 =====
+  const urlname = creatorUrlname || '';
+  const lines = [];
+  const o = s => lines.push(s);
+
+  o(`# 📊 note分析パック（${urlname}）｜${month}・貼るだけAI分析用`);
+  o(`対象月：${month}（${cur.length}本）／全${Object.keys(arts).length}本`);
+  o('');
+  o('> このMarkdownは、ChatGPTやClaudeなどのAIに貼ってnote運営を振り返るための分析パックです。');
+  o('> このMarkdown自体をそのまま公開する前提ではなく、AIによる振り返り・分析・下書き作成のための一次情報です。');
+  o('> 個人別の反応履歴を含む場合があります。AIの出力をnote記事などに転用する場合は、個人名や個別履歴が本文に出ないよう必ず編集してください。');
+  o('> 補正スキ率＝スキ÷公開当時フォロワー数。母数の違いによる見え方のズレを抑えるための参考指標です。履歴外はN/A。');
+  o('> 深さ＝スキ・コメント・マガジンなどから算出した、反応の濃さを見る独自指標です。');
+  o('');
+
+  // ① 記事マスター（フルタイトル＋公開日で区別＝記事番号に依存しない汎用）
+  o(`## ① 記事マスター（${month}）`);
+  if (cur.length === 0) {
+    o('（該当期間に公開記事はありません）');
+  } else {
+    o('| 記事 | 公開 | スキ | コメ | マガ | 当時フォロ | 補正スキ率 | 24h初速 | 新規/常連 | 深さ |');
+    o('|---|---|---|---|---|---|---|---|---|---|');
+    for (const r of cur.slice().sort((a, b) => a.pubd < b.pubd ? 1 : -1)) {
+      const eta = r.eta != null ? `${_round1(r.eta)}%` : 'N/A';
+      o(`| ${r._marker || ''}${r.title} | ${r.pubd} | ${r.lk} | ${r.cm} | ${r.mag} | ${r.fol ?? 'N/A'} | ${eta} | ${r.v24} | ${r.shinki}/${r.joren} | ${r.depth} |`);
+    }
+    o('');
+    o('> 💎＝課金記事（有料／メンシプ限定）。コメント可能な読者が購入者・会員に限定されるため、無料記事と直接比較せず傾向で読んでください。 ／ 🆕＝公開後72時間未満。数字が育ち切っていない＝伸び続ける可能性があり、固まった数字として扱わないでください。 ／ ?＝判定取得に失敗。');
+  }
+  o('');
+
+  // ② コホート
+  o('## ② いつ出会った読者が、今も来てくれているか（初反応した月 → 直近30日の再反応＝定着）');
+  o(`> ※${month} は直近30日内の初反応者を含むため定着率が高く出ます（参考値）。過去月との単純比較ではなく「今月出会った読者層」として扱ってください。`);
+  if (cohortKeys.length === 0) {
+    o('（データがありません）');
+  } else {
+    o('| 初反応した月 | 人数 | 直近30日の再反応 | 定着率 |');
+    o('|---|---|---|---|');
+    for (const k of cohortKeys) {
+      const c = cohortMap[k];
+      const rate = c.total > 0 ? `${Math.round(c.active / c.total * 100)}%` : 'N/A';
+      o(`| ${k} | ${c.total} | ${c.active} | ${rate} |`);
+    }
+  }
+  o('');
+
+  // ③ 過去常連（churn）
+  o('## ③ 直近30日では反応がない過去常連（通算2回以上スキ・直近30日無反応）');
+  o('> この表は本文にそのまま出すためのものではありません。分析では「過去によく反応してくれていた読者層」「最近反応が途切れている層」として、集計・傾向で扱ってください（個人名・回数・日付は本文に出さない）。');
+  if (churn.length === 0) {
+    o('（該当なし）');
+  } else {
+    o('| 名前 | 通算スキ | 最終反応 |');
+    o('|---|---|---|');
+    for (const [nm, c, ls] of churn.slice(0, 15)) {
+      o(`| ${nm} | ${c} | ${ls} |`);
+    }
+  }
+  o('');
+
+  // 分析プロンプト
+  o('---');
+  o('## 🤖 分析プロンプト（このまま続けてAIに頼める）');
+  o('');
+  o('1. **振り返り**：「①の記事マスターを見て、補正スキ率・深さ・24h初速・新規/常連比から、今月の\"刺さった型\"と\"空振りの型\"をテーマ・文体で各3つ。順位や優劣の断定はせず傾向で。」');
+  o('2. **次の一手（主軸）**：「②の定着と③の過去常連の傾向から、来月書くと良いテーマ・切り口を3つ。新規を連れてくる型と常連が喜ぶ型を分けて。」');
+  o('3. **振り返りnoteの下書き**：「この分析を読者に見せられる振り返りnoteの下書きに。数字は一次情報として明示し（補正スキ率・深さ・24h初速・新規/常連比など）、数字の羅列でなく\"数字から何が見えたか\"まで書く。個人名・個別読者の通算スキ数・最終反応日は本文に出さない（必要なら『過去によく反応してくれていた読者層』など集計・傾向で）。推測は推測として書く。」');
+  o('4. **注意**：「②の今月の定着率は期間内初反応者を含むため参考値として扱う。③の個人別データは本文に出さず、読者層の傾向分析にのみ使う。」');
+  o('');
+
+  return lines.join('\n');
+}
+
+// ===== AI Pack Modal 制御 =====
+let _aiPackMarkdown = '';
+
+function openAiPack() {
+  const modal = document.getElementById('aiPackModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeAiPack() {
+  const modal = document.getElementById('aiPackModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+function _aiPackToast(msg) {
+  const t = document.getElementById('aiPackToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(_aiPackToast._timer);
+  _aiPackToast._timer = setTimeout(() => { t.style.display = 'none'; }, 1600);
+}
+
+function setupAiPack() {
+  const openBtn = document.getElementById('aiPackBtn');
+  if (openBtn) openBtn.addEventListener('click', openAiPack);
+
+  const genBtn = document.getElementById('aiPackGenBtn');
+  const out = document.getElementById('aiPackOutput');
+  const actions = document.getElementById('aiPackActions');
+
+  if (genBtn) genBtn.addEventListener('click', async () => {
+    if (genBtn.disabled) return;
+    const originalLabel = genBtn.textContent;
+    genBtn.disabled = true;
+    genBtn.textContent = '取得中…';
+    try {
+      _aiPackMarkdown = await buildAnalysisPack();
+      out.value = _aiPackMarkdown;
+      out.style.display = 'block';
+      actions.style.display = 'flex';
+    } catch (e) {
+      console.error(e);
+      _aiPackToast('生成に失敗しました');
+    } finally {
+      genBtn.disabled = false;
+      genBtn.textContent = originalLabel;
+    }
+  });
+
+  const copyBtn = document.getElementById('aiPackCopyBtn');
+  if (copyBtn) copyBtn.addEventListener('click', async () => {
+    if (!_aiPackMarkdown) return;
+    try {
+      await navigator.clipboard.writeText(_aiPackMarkdown);
+      _aiPackToast('コピーしました');
+    } catch (e) {
+      out.select();
+      document.execCommand('copy');
+      _aiPackToast('コピーしました');
+    }
+  });
+
+  const dlBtn = document.getElementById('aiPackDlBtn');
+  if (dlBtn) dlBtn.addEventListener('click', () => {
+    if (!_aiPackMarkdown) return;
+    const blob = new Blob([_aiPackMarkdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `note-analysis-pack_${creatorUrlname || 'note'}_${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  const cgptBtn = document.getElementById('aiPackOpenChatGPTBtn');
+  if (cgptBtn) cgptBtn.addEventListener('click', () => window.open('https://chatgpt.com/', '_blank', 'noopener'));
+  const clBtn = document.getElementById('aiPackOpenClaudeBtn');
+  if (clBtn) clBtn.addEventListener('click', () => window.open('https://claude.ai/new', '_blank', 'noopener'));
+
+  // Esc で閉じる
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const m = document.getElementById('aiPackModal');
+      if (m && m.style.display !== 'none') closeAiPack();
+    }
+  });
+}
+
+// init() の最後で AI Pack も配線
+setupAiPack();
 
 init();

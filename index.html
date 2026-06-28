@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="images/icon-192.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=0.8.1">
+<link rel="stylesheet" href="app.css?v=0.9.0">
 </head>
 <body>
 
@@ -20,10 +20,15 @@
   <header class="header">
     <div class="header-title-row">
       <h1 class="header-title"><span class="h1-lead">観</span>測は<span class="h1-lead accent">続</span><span class="accent">く。</span></h1>
-      <a id="readerMapLink" class="header-readermap" href="#" target="_blank" rel="noopener">読者マップβ ↗</a>
-      <a href="manual.html?v=0.8.1" class="header-help">使い方</a>
+      <a href="manual.html?v=0.9.0" class="header-help">使い方</a>
     </div>
-    <p class="header-sub">昨日、あなたに会いに来た人。</p>
+    <div class="header-sub-row">
+      <p class="header-sub">昨日、あなたに会いに来た人。</p>
+      <div class="header-subactions">
+        <a id="readerMapLink" class="header-readermap" href="#" target="_blank" rel="noopener">読者マップβ ↗</a>
+        <button type="button" id="aiPackBtn" class="header-aipack">✨AI分析</button>
+      </div>
+    </div>
     <div class="header-meta">
       <span id="creatorName">--</span> / <span id="followerCount">--</span> followers
       <br class="meta-break"><span class="meta-updated">updated: <span id="lastUpdate">--</span></span>
@@ -76,7 +81,7 @@
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-copy">&copy; おはようカノジョ / hasyamo</div>
-    <div class="footer-version">v0.8.1</div>
+    <div class="footer-version">v0.9.0</div>
   </footer>
 </div>
 
@@ -85,6 +90,27 @@
   <div class="modal-content">
     <button class="modal-close" onclick="closeScreenshot()">&times;</button>
     <div id="sukiScreenshotContent"></div>
+  </div>
+</div>
+
+<!-- AI Pack Modal -->
+<div id="aiPackModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAiPack()">
+  <div class="ai-pack-sheet">
+    <button class="modal-close ai-pack-close" onclick="closeAiPack()" aria-label="閉じる">&times;</button>
+    <div class="ai-pack-title">✨ AI分析パック</div>
+    <p class="ai-pack-desc">
+      noteの反応データを、ChatGPTやClaudeに貼れるMarkdownとして出力します。<br>
+      スキ数・コメント数・スキ率や、読者がどれだけ定着しているかなどをもとに、記事の振り返り、次に書くテーマ、検証仮説づくりに使えます。
+    </p>
+    <button type="button" id="aiPackGenBtn" class="ai-pack-genbtn">📋 直近30日のMarkdownを生成</button>
+    <textarea id="aiPackOutput" class="ai-pack-output" readonly placeholder="ここに生成結果が表示されます" style="display:none"></textarea>
+    <div id="aiPackActions" class="ai-pack-actions" style="display:none">
+      <button type="button" id="aiPackCopyBtn" class="ai-pack-actbtn">コピー</button>
+      <button type="button" id="aiPackDlBtn" class="ai-pack-actbtn">.mdダウンロード</button>
+      <button type="button" id="aiPackOpenChatGPTBtn" class="ai-pack-actbtn">ChatGPTで開く</button>
+      <button type="button" id="aiPackOpenClaudeBtn" class="ai-pack-actbtn">Claudeで開く</button>
+    </div>
+    <div id="aiPackToast" class="ai-pack-toast" style="display:none"></div>
   </div>
 </div>
 
@@ -98,6 +124,6 @@
   </div>
 </div>
 
-<script src="app.js?v=0.8.1"></script>
+<script src="app.js?v=0.9.0"></script>
 </body>
 </html>

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'fan-board-v0.8.1';
+const CACHE_NAME = 'fan-board-v0.9.0';
 const STATIC_ASSETS = [
   '/note-fan-board/',
   '/note-fan-board/index.html',
-  '/note-fan-board/app.css?v=0.8.1',
-  '/note-fan-board/app.js?v=0.8.1',
+  '/note-fan-board/app.css?v=0.9.0',
+  '/note-fan-board/app.js?v=0.9.0',
 ];
 
 self.addEventListener('install', e => {
