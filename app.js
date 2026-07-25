@@ -1977,7 +1977,7 @@ async function init() {
   checkVersionUpdate();
 }
 
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 const VERSION_KEY = 'fanboard_version';
 
 async function checkVersionUpdate() {
