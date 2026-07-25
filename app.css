@@ -138,6 +138,56 @@ a:hover { text-decoration: underline; }
 }
 
 /* ===== Tab Bar ===== */
+/* ===== 移行告知 電光掲示板 ===== */
+.ticker {
+  display: flex;
+  align-items: stretch;
+  margin: 0 0 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-amber) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-secondary));
+  overflow: hidden;
+  color: var(--text-primary);
+}
+.ticker:hover { text-decoration: none; border-color: var(--accent-amber); }
+.ticker-tag {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--bg-primary);
+  background: var(--accent-amber);
+}
+.ticker-viewport {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+.ticker-track {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  padding: 8px 0;
+  font-size: 15px;
+  color: var(--accent-amber);
+  will-change: transform;
+  animation: ticker-scroll 42s linear infinite;
+}
+.ticker-seg { flex: 0 0 auto; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; padding-left: 12px; white-space: normal; }
+}
+
 .tab-bar {
   display: flex;
   border-bottom: 1px solid var(--border);
