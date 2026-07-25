@@ -170,15 +170,17 @@ a:hover { text-decoration: underline; }
           mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }
 .ticker-track {
-  display: inline-flex;
-  flex-wrap: nowrap;
+  display: block;
+  width: max-content;
+  max-width: none;
   padding: 8px 0;
   font-size: 15px;
+  white-space: nowrap;
   color: var(--accent-amber);
   will-change: transform;
   animation: ticker-scroll 42s linear infinite;
 }
-.ticker-seg { flex: 0 0 auto; }
+.ticker-seg { display: inline; }
 .ticker:hover .ticker-track { animation-play-state: paused; }
 @keyframes ticker-scroll {
   from { transform: translateX(0); }
